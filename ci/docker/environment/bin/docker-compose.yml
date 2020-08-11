@@ -1,0 +1,45 @@
+#使用的compose版本
+version: '3'
+
+#compose关键字，定义services
+services:
+  product-consul:
+    #service中容器的名称
+    container_name: product-consul
+    image: product.repo/consul:0.9.4.1
+    restart: always
+    #当前服务向外暴漏的端口
+    ports:
+      - "8500:8500"
+    networks:
+      - "product.net"
+  product-redis:
+    #service中容器的名称
+    container_name: product-redis
+    image: product.repo/redis:4.0.2.1
+    restart: always
+    #当前服务向外暴漏的端口
+    ports:
+      - "36379:6379"
+    volumes:
+      - $DIR_VOLUME/${PRODUCT_NAME}-env/redis/data:/data
+    networks:
+      - "product.net"
+
+  product-mysql:
+    #service中容器的名称
+    container_name: product-mysql
+    image: product.repo/mysql:8.0.18.2
+    restart: always
+    #当前服务向外暴漏的端口
+    ports:
+      - "33306:3306"
+    volumes:
+      - $PWD/../volume/sql:/docker-entrypoint-initdb.d:rw
+      - $DIR_VOLUME/${PRODUCT_NAME}-env/mysql/data:/var/lib/mysql:rw
+      - $DIR_VOLUME/${PRODUCT_NAME}-env/mysql/logs:/logs:rw
+    networks:
+      - "product.net"
+networks:
+  product.net:
+    driver: bridge

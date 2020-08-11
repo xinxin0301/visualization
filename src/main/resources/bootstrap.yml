@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: visualization
+# default true  
+management.security.enabled: false
+

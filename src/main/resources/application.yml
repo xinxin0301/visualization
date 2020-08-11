@@ -1,0 +1,178 @@
+spring:
+  profiles:
+    active: dev
+ribbon:
+  ReadTimeout: 60000
+  SocketTimeout: 60000
+  MaxAutoRetries: 0
+  MaxAutoRetriesNextServer: 0
+hystrix:
+  command:
+    default:
+      execution:
+        isolation:
+          thread:
+            timeoutInMilliseconds: 60000
+security:
+  oauth2:
+    resource:
+      filter-order: 3
+      user-info-uri: http://prometheus-uia:9002/oauth/user
+      prefer-token-info: false
+#日志审计功能开关 默认:拦截已配置的请求  
+audit.audit-all.switch: false
+spring.activiti.history-level: full
+project.version: 1.0.0
+#session过期时间  以秒为单位   默认：1800秒  (30分钟)		    
+token.validity.seconds: 3600
+
+#过滤所有接口
+auth:
+  exclusive:
+    urls: /**
+
+jasypt:
+  encryptor:
+    bean: sbrEncryptorBean
+---
+server:
+  port: 8888
+spring:
+  profiles: dev
+  cloud:
+    consul:
+      host: 127.0.0.1
+      #  Consul监听端口8500
+      port: 8500
+      enabled: true
+      discovery:
+        # 配置服务注册到Consul上
+        register: true
+        # 配置注册到consul 服务的id
+        instance-id: ${spring.application.name}:${server.port}
+        service-name: ${spring.application.name}
+        # 很重到如果没有这个服务在Consul是注册失败的导致服务不能被调用，解决Consul页面服务检查失败报错问题
+        heartbeat:
+          enabled: true
+  redis:
+    host: 127.0.0.1
+    password: 101202
+    pool:
+      # 连接池最大连接数（使用负值表示没有限制）
+      max-active: 100
+      # 连接池最大阻塞等待时间（使用负值表示没有限制）
+      max-wait: -1
+      # 连接池中的最大空闲连接
+      max-idle: 10
+      # 连接池中的最小空闲连接
+      min-idle: 0
+  datasource:
+    url: jdbc:mysql://localhost:3306/visualization?useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull
+    #url: jdbc:proxy:mysql://${db.server}:${db.port}/business-platform?useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull
+    driver-class-name: com.mysql.jdbc.Driver
+    #driver-class-name: com.sbr.threeaudit.dbdriver.driver.MysqlProxyDriver
+    username: root
+    password: root
+
+
+#    url: SBR_ENCRYPT{fUoDilg0s4DhPkpXd58XmUR2Zo6l7/+xftW7mkrKEKHiQgvy7Ja5tyyqQDg6p/rWawlWLEYFcl6eryIezGvd3T10koZ1UdXheBmI1b8T8qLlt1YLoeXelDW4MN+Eiv+P7/r2BpiZzWdQM31+YPpGDQw6Eyncr1ZWSECjKoQ0GPA=}
+#    driver-class-name: com.mysql.jdbc.Driver
+#    username: SBR_ENCRYPT{TafOlf2Hbl7tJuyv7xtf+w==}
+#    password: SBR_ENCRYPT{BmgZ/sy3aIb/5serYjCflw==}
+    # 初始化大小，最小，最大
+    initial-size: 5
+    min-idle: 5
+    max-idle: 100
+    max-wait: 10000
+    validation-query: SELECT 1
+    #没次使用连接时进行校验，会影响系统性能。默认为false
+    test-on-borrow: true
+    test-while-idle: true
+    time-between-eviction-runs-millis: 60000
+  jpa:
+    hibernate:
+      ddl-auto: none
+    database-platform: org.hibernate.dialect.MySQL5Dialect
+    show-sql: false
+---
+server:
+  port: 8888
+spring:
+  profiles: test
+  cloud:
+    consul:
+      host: localhost
+      #  Consul监听端口8500
+      port: 8500
+      enabled: true
+      discovery:
+        # 配置服务注册到Consul上
+        register: true
+        # 配置注册到consul 服务的id
+        instance-id: ${spring.application.name}:${server.port}
+        service-name: ${spring.application.name}
+        # 很重到如果没有这个服务在Consul是注册失败的导致服务不能被调用，解决Consul页面服务检查失败报错问题
+        heartbeat:
+          enabled: true
+  redis:
+    #host: 192.168.209.132
+    host: localhost
+---
+server:
+  port: 8888
+spring:
+  profiles: prod
+  cloud:
+    consul:
+      host: product-consul
+      #  Consul监听端口8500
+      port: 8500
+      enabled: true
+      discovery:
+        # 配置服务注册到Consul上
+        register: true
+        # 配置注册到consul 服务的id
+        instance-id: ${spring.application.name}:${server.port}
+        service-name: ${spring.application.name}
+        # 很重到如果没有这个服务在Consul是注册失败的导致服务不能被调用，解决Consul页面服务检查失败报错问题
+        heartbeat:
+          enabled: true
+  redis:
+    host: product-redis
+    password: Admin@123
+    pool:
+      # 连接池最大连接数（使用负值表示没有限制）
+      max-active: 100
+      # 连接池最大阻塞等待时间（使用负值表示没有限制）
+      max-wait: -1
+      # 连接池中的最大空闲连接
+      max-idle: 10
+      # 连接池中的最小空闲连接
+      min-idle: 0
+  datasource:
+    url: jdbc:mysql://product-mysql:3306/visualization?useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull
+    driver-class-name: com.mysql.jdbc.Driver
+    username: root
+    password: Admin@123
+
+
+#    url: SBR_ENCRYPT{fUoDilg0s4DhPkpXd58XmUR2Zo6l7/+xftW7mkrKEKHiQgvy7Ja5tyyqQDg6p/rWawlWLEYFcl6eryIezGvd3T10koZ1UdXheBmI1b8T8qLlt1YLoeXelDW4MN+Eiv+P7/r2BpiZzWdQM31+YPpGDQw6Eyncr1ZWSECjKoQ0GPA=}
+#    driver-class-name: com.mysql.jdbc.Driver
+#    username: SBR_ENCRYPT{TafOlf2Hbl7tJuyv7xtf+w==}
+#    password: SBR_ENCRYPT{BmgZ/sy3aIb/5serYjCflw==}
+    # 初始化大小，最小，最大
+    initial-size: 5
+    min-idle: 5
+    max-idle: 100
+    max-wait: 10000
+    validation-query: SELECT 1
+    #没次使用连接时进行校验，会影响系统性能。默认为false
+    test-on-borrow: true
+    test-while-idle: true
+    time-between-eviction-runs-millis: 60000
+  jpa:
+    hibernate:
+      ddl-auto: none
+    database-platform: org.hibernate.dialect.MySQL5Dialect
+    show-sql: false  
+  

@@ -1,0 +1,118 @@
+spring:
+  profiles:
+    active: dev
+ribbon:
+  ReadTimeout: 60000
+  SocketTimeout: 60000
+  MaxAutoRetries: 0
+  MaxAutoRetriesNextServer: 0
+hystrix:
+  command:
+    default:
+      execution:
+        isolation:
+          thread:
+            timeoutInMilliseconds: 60000
+project.version: 1.0.415
+zuul:
+  add-proxy-headers: true
+  host:
+    connect-timeout-millis: 60000
+    socket-timeout-millis: 60000
+  routes:
+    uia:
+      path: /uia/**
+      sensitiveHeaders:
+      serviceId: prometheus-uia
+      stripPrefix: false
+    license:
+      path: /license/**
+      sensitiveHeaders:
+      serviceId: prometheus-uia
+      stripPrefix: false
+    file:
+      path: /file/**
+      sensitiveHeaders:
+      serviceId: prometheus-file
+      stripPrefix: false
+    workflow:
+      path: /workflow/**
+      sensitiveHeaders:
+      serviceId: prometheus-workflow
+      stripPrefix: false
+    data-bus:
+      path: /data-bus/**
+      sensitiveHeaders:
+      serviceId: prometheus-data-bus
+      stripPrefix: false
+    visual:
+      path: /visualization/**
+      sensitiveHeaders:
+      serviceId: visualization
+      stripPrefix: false
+# 所有服务请在这个上面添加，否则网关失效
+    intercepterror:
+      path: /**
+      sensitiveHeaders:
+      serviceId: intercepterror
+      stripPrefix: false
+---
+server:
+  port: 9001
+spring:
+  profiles: dev
+  cloud:
+    consul:
+      host: localhost
+      #  Consul监听端口8500
+      port: 8500
+      enabled: true
+      discovery:
+        # 配置服务注册到Consul上
+        register: true
+        # 配置注册到consul 服务的id
+        instance-id: ${spring.application.name}:${server.port}
+        service-name: ${spring.application.name}
+        # 很重到如果没有这个服务在Consul是注册失败的导致服务不能被调用，解决Consul页面服务检查失败报错问题
+        heartbeat:
+          enabled: true
+---
+server:
+  port: 9001
+spring:
+  profiles: test
+  cloud:
+    consul:
+      host: localhost
+      #  Consul监听端口8500
+      port: 8500
+      enabled: true
+      discovery:
+        # 配置服务注册到Consul上 
+        register: true
+        # 配置注册到consul 服务的id
+        instance-id: ${spring.application.name}:${server.port}
+        service-name: ${spring.application.name}
+        # 很重到如果没有这个服务在Consul是注册失败的导致服务不能被调用，解决Consul页面服务检查失败报错问题
+        heartbeat:
+          enabled: true
+---
+server:
+  port: 9001
+spring:
+  profiles: prod
+  cloud:
+    consul:
+      host: product-consul
+      #  Consul监听端口8500
+      port: 8500
+      enabled: true
+      discovery:
+        # 配置服务注册到Consul上
+        register: true
+        # 配置注册到consul 服务的id
+        instance-id: ${spring.application.name}:${server.port}
+        service-name: ${spring.application.name}
+        # 很重到如果没有这个服务在Consul是注册失败的导致服务不能被调用，解决Consul页面服务检查失败报错问题
+        heartbeat:
+          enabled: true
