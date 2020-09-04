@@ -1,6 +1,7 @@
 package com.sbr.visualization.datamodel.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sbr.common.exception.SBRException;
 import com.sbr.common.finder.Finder;
 import com.sbr.common.page.Page;
 import com.sbr.common.util.ClassUtil;
@@ -15,6 +16,8 @@ import com.sbr.visualization.datamodelattribute.dao.DataModelAttributeDAO;
 import com.sbr.visualization.datamodelattribute.model.DataModelAttribute;
 import com.sbr.visualization.datasourcemanage.dao.DatasourceManageDAO;
 import com.sbr.visualization.datasourcemanage.model.DatasourceManage;
+import com.sbr.visualization.filter.dao.FilterDAO;
+import com.sbr.visualization.filter.model.Filter;
 import com.sbr.visualization.mappingdata.dao.MappingDataDAO;
 import com.sbr.visualization.mappingdata.model.MappingData;
 import com.sbr.visualization.util.DataBaseUtil;
@@ -27,7 +30,13 @@ import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.indices.GetMappingsRequest;
 import org.elasticsearch.client.indices.GetMappingsResponse;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.aggregations.Aggregation;
+import org.elasticsearch.search.aggregations.AggregationBuilders;
+import org.elasticsearch.search.aggregations.bucket.terms.ParsedStringTerms;
+import org.elasticsearch.search.aggregations.bucket.terms.Terms;
+import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +74,9 @@ public class DataModelServiceImpl implements IDataModelService {
 
     @Autowired
     private MappingDataDAO mappingDataDAO;
+
+    @Autowired
+    private FilterDAO filterDAO;
 
     @Override
     public List<DataModel> findByFinder(Finder finder) {
@@ -118,7 +130,7 @@ public class DataModelServiceImpl implements IDataModelService {
             dataModel.setDatasourceManage(null);
         }
         ClassUtil.merge(entity, dataModel);
-        return dataModelDAO.save(entity);
+        return dataModelDAO.saveAndFlush(entity);
     }
 
     @Override
@@ -197,7 +209,6 @@ public class DataModelServiceImpl implements IDataModelService {
             infoJson.setData(resultList);
             return infoJson;
         } catch (Exception e) {
-            LOGGER.error("Elasticsearch查询索引属性列表失败：", e);
             infoJson.setSuccess(false);
             infoJson.setCode("500");
             infoJson.setDescription(e.getMessage());
@@ -313,6 +324,12 @@ public class DataModelServiceImpl implements IDataModelService {
             RestHighLevelClient esHighInit = esConfig.getEsHighInit(datasourceManage);
             SearchSourceBuilder source = new SearchSourceBuilder();
             SearchRequest searchRequest = new SearchRequest(dataModelDAOOne.getIndexes());
+            //获取es 查询条件，查询过滤器处理条件
+            List<Filter> filterList = filterDAO.findByDataModelId(dataModelDAOOne.getId());
+            if (filterList != null && fieldList.size() > 0) {
+                BoolQueryBuilder boolQueryBuilder = ElasticsearchUtil.elasticsearchGetData(filterList);
+                source.query(boolQueryBuilder);
+            }
             source.size(500);
             searchRequest.source(source);
             searchResponse = esHighInit.search(searchRequest, RequestOptions.DEFAULT);
@@ -405,7 +422,7 @@ public class DataModelServiceImpl implements IDataModelService {
                 mappingDataList.forEach(mappingData -> {
                     //查询出来数据，与映射原始数据比较，如果相同，取映射值返回
                     for (Map<String, String> data : finalDatas) {
-                        if (data.get(dataModelAttribute.getRandomAlias()).equals(mappingData.getOriginalData())) {
+                        if (data.get(dataModelAttribute.getRandomAlias()) != null && data.get(dataModelAttribute.getRandomAlias()).equals(mappingData.getOriginalData())) {
                             data.put(dataModelAttribute.getRandomAlias(), mappingData.getMappingData());
                             continue;
                         }
@@ -427,9 +444,97 @@ public class DataModelServiceImpl implements IDataModelService {
     @Override
     public List<Map<String, String>> getDataByfield(DataModel dataModel) throws Exception {
         DataModel dataModelDAOOne = dataModelDAO.findOne(dataModel.getId());
+        List<Map<String, String>> datas = null;
         if (dataModelDAOOne == null) {
-            throw new RestIllegalArgumentException("数据模型ID不合法");
+            throw new SBRException("数据模型ID不合法");
         }
+        try {
+            switch (dataModelDAOOne.getDatasourceManage().getDatabaseTypeManage().getDatabaseTypeName()) {
+                case CommonConstant.MYSQL:
+                    datas = getDataByFuleldAndMySql(dataModel, dataModelDAOOne);
+                    break;
+                case CommonConstant.ES:
+                    datas = getDataByFuleldAndEs(dataModel, dataModelDAOOne);
+                    break;
+            }
+        } catch (Exception e) {
+            LOGGER.error("DataModelServiceImpl,查询属性值結果错误:", e);
+        }
+        return datas;
+    }
+
+    @Override
+    @Transactional
+    public InfoJson deleteDataModel(String id) {
+        InfoJson infoJson = new InfoJson();
+        DataModel dataModel = dataModelDAO.findOne(id);
+        if (dataModel == null) {
+            infoJson.setSuccess(false);
+            infoJson.setDescription("当前数据模型不存在！");
+            return infoJson;
+        }
+        //删除过滤器
+        List<Filter> filterList = filterDAO.findByDataModelId(id);
+        if (filterList != null && filterList.size() > 0) {
+            filterDAO.delete(filterList);
+        }
+        //删除数据模型属性
+        List<DataModelAttribute> dataModelAttributeList = dataModelAttributeDAO.findByDataModelId(id);
+        if (dataModelAttributeList != null && dataModelAttributeList.size() > 0) {
+            dataModelAttributeDAO.delete(dataModelAttributeList);
+        }
+        //删除数据模型
+        dataModelDAO.delete(id);
+
+        infoJson.setSuccess(true);
+        infoJson.setDescription("删除成功！");
+        return infoJson;
+    }
+
+    /**
+     * @param dataModel
+     * @param dataModelDAOOne
+     * @return java.util.List<java.util.Map < java.lang.String, java.lang.String>>
+     * @Author zxx
+     * @Description //TODO 根据字段名查询数据
+     * @Date 16:00 2020/9/1
+     **/
+    private List<Map<String, String>> getDataByFuleldAndEs(DataModel dataModel, DataModel dataModelDAOOne) throws IOException {
+        List<Map<String, String>> list = null;
+        try {
+            list = new ArrayList<>();
+            RestHighLevelClient esHighInit = esConfig.getEsHighInit(dataModelDAOOne.getDatasourceManage());
+            SearchRequest searchRequest = new SearchRequest("" + dataModel.getIndexes() + "");
+            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+            TermsAggregationBuilder aggregationBuilders = AggregationBuilders.terms(dataModel.getField()).field(dataModel.getField()).size(500);
+            searchSourceBuilder.aggregation(aggregationBuilders);
+            searchRequest.source(searchSourceBuilder);
+            SearchResponse search = esHighInit.search(searchRequest, RequestOptions.DEFAULT);
+            Map<String, Aggregation> asMap = search.getAggregations().getAsMap();
+            ParsedStringTerms stringTerms = (ParsedStringTerms) asMap.get(dataModel.getField());
+            List<? extends Terms.Bucket> buckets = stringTerms.getBuckets();
+            for (Terms.Bucket bucket : buckets) {
+                String keyAsString = bucket.getKeyAsString();
+                Map<String, String> map = new HashMap<>();
+                map.put(dataModel.getField(), keyAsString);
+                list.add(map);
+            }
+        } catch (IOException e) {
+            LOGGER.error("DataModelServiceImpl,Elasticsearch根据字段名查询字段列表错误：", e);
+        }
+        return list;
+    }
+
+    /**
+     * @param dataModel
+     * @param dataModelDAOOne
+     * @return java.util.List<java.util.Map < java.lang.String, java.lang.String>>
+     * @Author zxx
+     * @Description //TODO MySql 查询数据
+     * @Date 15:10 2020/9/1
+     * @Param
+     **/
+    public List<Map<String, String>> getDataByFuleldAndMySql(DataModel dataModel, DataModel dataModelDAOOne) throws Exception {
         StringBuffer sqlbuffer = new StringBuffer(" SELECT DISTINCT " + dataModel.getField() + " FROM " + dataModel.getTableName() + " LIMIT 0,500");
         DatasourceManage datasourceManage = dataModelDAOOne.getDatasourceManage();
         List<Map<String, String>> datas = DataBaseUtil.getDatas(datasourceManage, sqlbuffer.toString(), null);

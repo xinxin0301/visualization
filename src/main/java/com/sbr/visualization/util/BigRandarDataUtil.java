@@ -112,7 +112,7 @@ public class BigRandarDataUtil {
                 infoJson = getResultTextBooxData(chartDatas);
                 break;
             case CommonConstant.RADAR://雷达图
-                infoJson = getResultRadarData(chartDatas, dimensionalityData, measurementData, colorAttributes);
+                infoJson = getResultRadarData(chartDatas, dimensionalityData, measurementData, colorAttributes, value);
         }
         return infoJson;
     }
@@ -165,7 +165,7 @@ public class BigRandarDataUtil {
      * @Description //TODO 处理雷达图数据
      * @Date 13:38 2020/7/16
      **/
-    private static InfoJson getResultRadarData(List<Map<String, String>> chartDatas, List<DataModelAttribute> dimensionsDataList, List<DataModelAttribute> measureDataList, List<DataModelAttribute> colorAttributes) {
+    private static InfoJson getResultRadarData(List<Map<String, String>> chartDatas, List<DataModelAttribute> dimensionsDataList, List<DataModelAttribute> measureDataList, List<DataModelAttribute> colorAttributes, List<BigAttributeData> value) {
         InfoJson infoJson = new InfoJson();
         Map<String, Object> resultMap = new HashMap<>();
         List<Map<String, Object>> indicators = new ArrayList<>();
@@ -211,10 +211,10 @@ public class BigRandarDataUtil {
                 //填空，没值的数据赋0
                 for (Map.Entry<String, Object> stringObjectEntry : map.entrySet()) {
                     Map<String, Object> seriesMap = new HashMap<>();
-                    Double[] value = (Double[]) stringObjectEntry.getValue();
-                    for (int i = 0; i < value.length; i++) {
-                        if (value[i] == null) {
-                            value[i] = 0.00;
+                    Double[] doubleValue = (Double[]) stringObjectEntry.getValue();
+                    for (int i = 0; i < doubleValue.length; i++) {
+                        if (doubleValue[i] == null) {
+                            doubleValue[i] = 0.00;
                         }
                     }
                     //拼装series结果数据
@@ -242,18 +242,20 @@ public class BigRandarDataUtil {
                 Map<String, Object> measureMap = new HashMap<>();
                 List<Double> doubleList = new ArrayList<>();
                 for (Map<String, String> chartData : chartDatas) {
-                    Double value = 0.0;
+                    Double doubleValue = 0.0;
                     String dataValue = chartData.get(dataModelAttribute.getRandomAlias());
                     if (dataValue != null) {
                         //替换标识最大值
-                        value = Double.valueOf(dataValue);
+                        doubleValue = Double.valueOf(dataValue);
                     }
-                    if (value > flag) {
-                        flag = value;
+                    if (doubleValue > flag) {
+                        flag = doubleValue;
                     }
-                    doubleList.add(value);
+                    doubleList.add(doubleValue);
                 }
-                measureMap.put("name", dataModelAttribute.getFieldsAlias());
+                //展示名称
+                String name = DataBaseUtil.buildShowName(value, dataModelAttribute);
+                measureMap.put("name", name);
                 measureMap.put("type", "radar");
                 measureMap.put("value", doubleList);
                 series.add(measureMap);

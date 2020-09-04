@@ -157,13 +157,10 @@ public class DataModelAttributeServiceImpl implements IDataModelAttributeService
                 finalAttributeList.add(dataModelAttribute);
             });
             //批量創建
-            List<DataModelAttribute> attributes = dataModelDimensionDAO.save(attributeList);
-            if (attributes == null) {
-                infoJson.setDescription("操作失败");
-                infoJson.setSuccess(false);
+            for (DataModelAttribute attribute : attributeList) {
+                dataModelDimensionDAO.saveAndFlush(attribute);
             }
         }
-
         //TODO 生成SQL，并保存SQL字符串
         buidGetSql(attributeList, dataModel);
         return infoJson;
@@ -229,7 +226,7 @@ public class DataModelAttributeServiceImpl implements IDataModelAttributeService
                 dataModel.setSqlParam("");
                 dataModel.setSqlCondition("");
             }
-            dataModelDAO.save(dataModel);
+            dataModelDAO.saveAndFlush(dataModel);
         }
     }
 

@@ -101,7 +101,7 @@ public class BigMapDataUtil {
         //处理返回数据
         switch (bigScreenData.getChartType()) {
             case CommonConstant.MAP://地图
-                infoJson = getResultMapData(chartDatas, dataModelAttributeList, valueDataList, infoJson);
+                infoJson = getResultMapData(chartDatas, dataModelAttributeList, valueDataList, infoJson, value);
                 break;
         }
 
@@ -119,7 +119,7 @@ public class BigMapDataUtil {
      * @Date 17:21 2020/7/16
      * @Param
      **/
-    private static InfoJson getResultMapData(List<Map<String, String>> chartDatas, List<DataModelAttribute> dataModelAttributeList, List<DataModelAttribute> valueDataList, InfoJson infoJson) {
+    private static InfoJson getResultMapData(List<Map<String, String>> chartDatas, List<DataModelAttribute> dataModelAttributeList, List<DataModelAttribute> valueDataList, InfoJson infoJson, List<BigAttributeData> value) {
         Map<String, Object> resultMap = new HashMap<>();
         List<Map<String, Object>> mapData = new ArrayList<>();
         if (chartDatas != null && chartDatas.size() > 0) {
@@ -129,18 +129,21 @@ public class BigMapDataUtil {
                     map.put("name", chartData.get(dataModelAttribute.getRandomAlias()));
                 }
                 for (DataModelAttribute dataModelAttribute : valueDataList) {
-                    Double value = 0.0;
+                    Double doubleValue = 0.0;
                     String dataValue = chartData.get(dataModelAttribute.getRandomAlias());
                     if (dataValue != null) {
-                        value = Double.valueOf(dataValue);
+                        doubleValue = Double.valueOf(dataValue);
                     }
-                    map.put("value", value);
+                    map.put("value", doubleValue);
                 }
                 mapData.add(map);
             }
         }
         resultMap.put("mapData", mapData);
-        resultMap.put("valueName", valueDataList.get(0).getFieldsAlias());
+
+        //获取展示名称
+        String name = DataBaseUtil.buildShowName(value, valueDataList.get(0));
+        resultMap.put("valueName", name);
         infoJson.setData(resultMap);
         return infoJson;
     }

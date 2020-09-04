@@ -42,6 +42,34 @@ public class BigAttributeData {
     @JsonProperty(value = "y_axis_index")
     private Integer yAxisIndex;
 
+    /**
+     *  修改展示名称
+     **/
+    @JsonProperty(value = "alias")
+    private String alias;
+
+    /**
+     *  表格维度列设置
+     **/
+    @JsonProperty(value = "table_col")
+    private TableCol tableCol;
+
+    public TableCol getTableCol() {
+        return tableCol;
+    }
+
+    public void setTableCol(TableCol tableCol) {
+        this.tableCol = tableCol;
+    }
+
+    public String getAlias() {
+        return alias;
+    }
+
+    public void setAlias(String alias) {
+        this.alias = alias;
+    }
+
     public String getType() {
         return type;
     }

@@ -55,17 +55,23 @@ public class BigScreenPieDataUtil {
         List<BigAttributeData> yAll = new ArrayList<>();
         List<BigAttributeData> y = bigScreenData.getY();
         List<BigAttributeData> y2 = bigScreenData.getY2();
+        //排序集合
+        List<BigAttributeData> sortList = new ArrayList<>();
 
         //两个度量放入单个集合
         if (y != null && y2 != null) {
             yAll.addAll(y);
             yAll.addAll(y2);
+            sortList.addAll(y);
+            sortList.addAll(y2);
         } else {
             if (y2 != null) {
                 yAll.addAll(y2);
+                sortList.addAll(y2);
             }
             if (y != null) {
                 yAll.addAll(y);
+                sortList.addAll(y);
             }
         }
 
@@ -118,6 +124,7 @@ public class BigScreenPieDataUtil {
             for (BigAttributeData bigAttributeData : x) {
                 dimensionsDataList.add(dataModelAttributeDAO.findOne(bigAttributeData.getId()));
             }
+            sortList.addAll(x);
         }
 
         //如果有color放入全部维度结合，拼装SQL
@@ -142,7 +149,7 @@ public class BigScreenPieDataUtil {
         try {
             switch (datasourceManage.getDatabaseTypeManage().getDatabaseTypeName()) {
                 case CommonConstant.MYSQL:
-                    chartDatas = buildMySql(bigScreenData, modelDAOOne, yAll, allDataModelAttribute, datasourceManage);
+                    chartDatas = buildMySql(bigScreenData, modelDAOOne, yAll, allDataModelAttribute, datasourceManage, sortList);
                     break;
                 case CommonConstant.ES:
                     chartDatas = ElasticsearchUtil.buildElasticsearch(bigScreenData, modelDAOOne, yAll, allDataModelAttribute, datasourceManage, measureDataList);
@@ -163,7 +170,7 @@ public class BigScreenPieDataUtil {
                 infoJson = getResultBarAndLineData(chartDatas, dimensionsDataList, measureDataList, colorDimensionsDataList, yAll);
                 break;
             case CommonConstant.PIE://饼图
-                infoJson = getResultPieData(chartDatas, dimensionsDataList, measureDataList, bigScreenData.getChartType());
+                infoJson = getResultPieData(chartDatas, dimensionsDataList, measureDataList, y);
                 break;
         }
         return infoJson;
@@ -180,7 +187,7 @@ public class BigScreenPieDataUtil {
      * @Description //TODO Mysql
      * @Date 15:16 2020/8/5
      **/
-    private static List<Map<String, String>> buildMySql(BigScreenData bigScreenData, DataModel modelDAOOne, List<BigAttributeData> yAll, List<DataModelAttribute> allDataModelAttribute, DatasourceManage datasourceManage) throws Exception {
+    private static List<Map<String, String>> buildMySql(BigScreenData bigScreenData, DataModel modelDAOOne, List<BigAttributeData> yAll, List<DataModelAttribute> allDataModelAttribute, DatasourceManage datasourceManage, List<BigAttributeData> sortList) throws Exception {
         List<Map<String, String>> chartDatas;//度量条件
         StringBuffer measureSQL = DataBaseUtil.buildMeasureSQL(yAll);
         //维度条件
@@ -188,7 +195,7 @@ public class BigScreenPieDataUtil {
         //如果等于null，说名没有color参数，重新拼接分组参数
         StringBuffer groupBy = DataBaseUtil.buildGroupBy(allDataModelAttribute);
         //排序条件
-        StringBuffer sortSQL = DataBaseUtil.buildSortSQL(yAll);
+        StringBuffer sortSQL = DataBaseUtil.buildSortSQL(sortList);
         //WHERE条件
         List<String> param = new ArrayList<>();
         String whereSQL = DataBaseUtil.buildWhereSQL(bigScreenData, modelDAOOne, param);
@@ -204,24 +211,27 @@ public class BigScreenPieDataUtil {
      * @param chartDatas         结果数据
      * @param dimensionsDataList 维度数据
      * @param measureDataList    度量数据
-     * @param chartType          图表类型
+     * @param y                  Y轴大屏对象
      * @return com.sbr.springboot.json.InfoJson
      * @Author zxx
      * @Description //TODO 根据数据结果、度量、维度、图标类型、拼接饼图数据格式
      * @Date 15:16 2020/6/18
      **/
-    private static InfoJson getResultPieData(List<Map<String, String>> chartDatas, List<DataModelAttribute> dimensionsDataList, List<DataModelAttribute> measureDataList, String chartType) {
+    private static InfoJson getResultPieData(List<Map<String, String>> chartDatas, List<DataModelAttribute> dimensionsDataList, List<DataModelAttribute> measureDataList, List<BigAttributeData> y) {
+        String valueName = DataBaseUtil.buildShowName(y, measureDataList.get(0));
         InfoJson infoJson = new InfoJson();
+        Map<String, Object> resultMap = new HashMap<>();
+        resultMap.put("name", valueName);
         List<Map<String, Object>> resultList = new ArrayList<>();
         chartDatas.forEach(map -> {
-            Map resultMap = new HashMap();
+            Map map1 = new LinkedHashMap();
             String name = "";
             //获取维度值,设置维度值
             for (DataModelAttribute dataModelAttribute : dimensionsDataList) {
                 name += "-" + map.get(dataModelAttribute.getRandomAlias());
             }
             //截取开头-
-            resultMap.put("name", name.substring(1));
+            map1.put("name", name.substring(1));
 
             //如果有别用采用别名取值
             for (DataModelAttribute dataModelAttribute : measureDataList) {
@@ -230,11 +240,12 @@ public class BigScreenPieDataUtil {
                 if (result != null) {
                     value = Double.valueOf(result);
                 }
-                resultMap.put("value", value);
+                map1.put("value", value);
             }
-            resultList.add(resultMap);
+            resultList.add(map1);
         });
-        infoJson.setData(resultList);
+        resultMap.put("data", resultList);
+        infoJson.setData(resultMap);
         return infoJson;
     }
 
@@ -279,7 +290,7 @@ public class BigScreenPieDataUtil {
         List<Map<String, Object>> mapList = new ArrayList<>();
 
         if (colorDimensionsDataList != null && colorDimensionsDataList.size() > 0) {
-           //TODO 此图图例没有添加--------------------------------------------------------------------------------------
+            //TODO 此图图例没有添加--------------------------------------------------------------------------------------
             Map<String, Set<String>> setMap = new HashMap<>();
             Map<String, List<Map<String, String>>> listMap = new HashMap<>();
             for (DataModelAttribute dataModelAttribute : colorDimensionsDataList) {
@@ -603,10 +614,12 @@ public class BigScreenPieDataUtil {
                         yAxisIndex = bigAttributeData.getyAxisIndex();
                     }
                 }
+                //展示名称
+                String name = DataBaseUtil.buildShowName(yAll, modelAttributes1.get(i));
                 resultMap.put("data", lists);
                 resultMap.put("type", type);
                 resultMap.put("yAxisIndex", yAxisIndex);
-                resultMap.put("name", modelAttributes1.get(i).getFieldsAlias());
+                resultMap.put("name", name);
                 mapList.add(resultMap);
             }
         }

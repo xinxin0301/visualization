@@ -147,7 +147,9 @@ public class BigThreeDimensionalDataUtil {
             for (DataModelAttribute valueDataModelAttribute : valueDataModelAttributes) {
                 Map<String, Object> map1 = new HashMap<>();
                 List<List<String>> dataList = new ArrayList<>();
-                map1.put("name", valueDataModelAttribute.getFieldsAlias());
+                //展示名称
+                String name = DataBaseUtil.buildShowName(value, valueDataModelAttribute);
+                map1.put("name", name);
                 map1.put("type", "bar3D");
                 map1.put("data", dataList);
                 for (Map<String, String> data : datas) {

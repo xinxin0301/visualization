@@ -105,46 +105,9 @@ public class FilterServiceImpl implements IFilterService {
                     filter.setComponentManage(null);
                 }
                 filter.setDataModel(one);
-                filterDAO.save(filter);
+                filterDAO.saveAndFlush(filter);
             }
         }
-
-        /*for (Filter filter : filters) {
-            //TODO 编辑
-            if (filter.getId() != null && StringUtils.isNotEmpty(filter.getId())) {
-                Filter daoOne = filterDAO.findOne(filter.getId());
-                if (daoOne == null) {
-                    throw new RestResouceNotFoundException("当前过滤器不存在！");
-                }
-
-                //编辑元组件
-                if (filter.getComponentManage() != null && StringUtils.isNotEmpty(filter.getComponentManage().getId())) {
-                    ComponentManage componentManage = componentManageDAO.findOne(filter.getComponentManage().getId());
-                    daoOne.setComponentManage(componentManage);
-                } else {
-                    filter.setComponentManage(null);
-                }
-
-                //编辑数据模型
-                if (filter.getDataModel() != null && StringUtils.isNotEmpty(filter.getDataModel().getId())) {
-                    DataModel dataModel = dataModelDAO.findOne(filter.getDataModel().getId());
-                    daoOne.setDataModel(dataModel);
-                } else {
-                    filter.setDataModel(null);
-                }
-                ClassUtil.merge(daoOne, filter);
-                filterDAO.save(daoOne);
-            } else {
-                //TODO 新增
-                if (filter.getComponentManage() == null || StringUtils.isEmpty(filter.getComponentManage().getId())) {
-                    filter.setComponentManage(null);
-                }
-                if (filter.getDataModel() == null || StringUtils.isEmpty(filter.getDataModel().getId())) {
-                    filter.setDataModel(null);
-                }
-                filterDAO.save(filter);
-            }
-        }*/
         infoJson.setSuccess(true);
         infoJson.setDescription("操作成功");
         return infoJson;

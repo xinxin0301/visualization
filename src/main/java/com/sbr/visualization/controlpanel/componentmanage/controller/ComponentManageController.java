@@ -6,11 +6,9 @@ import com.sbr.common.page.Page;
 import com.sbr.common.page.PageFactory;
 import com.sbr.springboot.controller.BaseController;
 import com.sbr.springboot.json.InfoJson;
-import com.sbr.springboot.rest.exception.RestResourceAlreadyExistException;
 import com.sbr.visualization.controlpanel.componentmanage.model.ComponentManage;
 import com.sbr.visualization.controlpanel.componentmanage.service.IComponentManageService;
 import org.apache.catalina.servlet4preview.http.HttpServletRequest;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -70,12 +68,12 @@ public class ComponentManageController extends BaseController {
     @PostMapping(value = "/v1/component-manages")
     public ComponentManage create(@Valid @RequestBody ComponentManage componentManage) {
 
-        if (StringUtils.isNotEmpty(componentManage.getChartCode())) {
+        /*if (StringUtils.isNotEmpty(componentManage.getChartCode())) {
             ComponentManage componentManage1 = componentManageService.findByChartCode(componentManage.getChartCode());
             if (componentManage1 != null) {
                 throw new RestResourceAlreadyExistException("图表代码重复!");
             }
-        }
+        }*/
         return componentManageService.create(componentManage);
     }
 
@@ -111,12 +109,12 @@ public class ComponentManageController extends BaseController {
     public ComponentManage update(@PathVariable("id") String id, @RequestBody ComponentManage componentManage) throws Exception {
         componentManage.setId(id);
 
-        if (StringUtils.isNotEmpty(componentManage.getChartCode())) {
+        /*if (StringUtils.isNotEmpty(componentManage.getChartCode())) {
             ComponentManage componentManage1 = componentManageService.findByChartCode(componentManage.getChartCode());
             if (componentManage1 != null && !componentManage1.getId().equals(id)) {
                 throw new RestResourceAlreadyExistException("图表代码重复!");
             }
-        }
+        }*/
         return componentManageService.patchUpdate(componentManage);
     }
 

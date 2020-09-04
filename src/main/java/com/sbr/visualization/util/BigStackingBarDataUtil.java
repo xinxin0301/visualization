@@ -109,7 +109,7 @@ public class BigStackingBarDataUtil {
         //处理返回数据
         switch (bigScreenData.getChartType()) {
             case CommonConstant.STACKING_BAR://堆叠柱圖
-                infoJson = getResultStackingBarData(chartDatas, xValueList, colorValueList, yValueList, infoJson);
+                infoJson = getResultStackingBarData(chartDatas, xValueList, colorValueList, yValueList, infoJson, y);
                 break;
         }
         return infoJson;
@@ -127,7 +127,7 @@ public class BigStackingBarDataUtil {
      * @Date 14:22 2020/8/10
      * @Param
      **/
-    private static InfoJson getResultStackingBarData(List<Map<String, String>> chartDatas, List<DataModelAttribute> xValueList, List<DataModelAttribute> colorValueList, List<DataModelAttribute> yValueList, InfoJson infoJson) {
+    private static InfoJson getResultStackingBarData(List<Map<String, String>> chartDatas, List<DataModelAttribute> xValueList, List<DataModelAttribute> colorValueList, List<DataModelAttribute> yValueList, InfoJson infoJson, List<BigAttributeData> y) {
         Map<String, Object> resultMap = new HashMap<>();
         List<String> categoriesList = new ArrayList<>();
         List<Map<String, Object>> mapList = new ArrayList<>();
@@ -177,8 +177,15 @@ public class BigStackingBarDataUtil {
                         if (flag) {
                             dataValue = Double.valueOf(chartData.get(dataModelAttribute.getRandomAlias()));
                         }
+
                         //图例名称
-                        String colorNameValue = colorName + dataModelAttribute.getFieldsName();
+                        String colorNameValue = "";
+                        if (yValueList.size() > 1) {
+                            colorNameValue = colorName + dataModelAttribute.getFieldsName();
+                        } else {
+                            colorNameValue = colorName.substring(0, colorName.length() - 1);
+                        }
+
                         if (seriesList != null && seriesList.size() > 0) {
                             for (Map<String, Object> objectMap : seriesList) {
                                 String name = (String) objectMap.get("name");
@@ -210,9 +217,16 @@ public class BigStackingBarDataUtil {
                 List<Double> doubleList = new ArrayList<>();
                 for (Map<String, String> chartData : chartDatas) {
                     String value = chartData.get(dataModelAttribute.getRandomAlias());
-                    doubleList.add(Double.valueOf(value));
+                    if (value != null) {
+                        doubleList.add(Double.valueOf(value));
+                    } else {
+                        doubleList.add(null);
+                    }
+
                 }
-                map.put("name", dataModelAttribute.getFieldsName());
+                //如果修改了展示名称，则展示修改的名称
+                String name = DataBaseUtil.buildShowName(y, dataModelAttribute);
+                map.put("name", name);
                 map.put("data", doubleList);
                 map.put("type", "bar");
                 seriesList.add(map);

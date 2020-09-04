@@ -122,4 +122,13 @@ public interface IDataModelService {
      * @return java.util.List<java.util.Map<java.lang.String,java.lang.Object>>
      **/
     List<Map<String, String>> getDataByfield(DataModel dataModel) throws Exception;
+
+    /**
+     * @Author zxx
+     * @Description //TODO 删除数据模型
+     * @Date 11:15 2020/9/3
+     * @param id
+     * @return com.sbr.springboot.json.InfoJson
+     **/
+    InfoJson deleteDataModel(String id);
 }

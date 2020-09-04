@@ -79,11 +79,7 @@ public class DataModelController extends BaseController {
      */
     @DeleteMapping(value = "/v1/data-models/{id}")
     public InfoJson deleteById(@PathVariable("id") String id) throws Exception {
-        InfoJson infoJson = new InfoJson();
-        dataModelService.delete(id);
-        infoJson.setSuccess(true);
-        infoJson.setDescription("删除成功！");
-        return infoJson;
+        return dataModelService.deleteDataModel(id);
     }
 
     /**

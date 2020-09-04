@@ -167,8 +167,8 @@ public class ComponentTypeManageServiceImpl implements IComponentTypeManageServi
         attributes.put("component_type_name", componentTypeManage.getComponentTypeName());
         attributes.put("sort_index", componentTypeManage.getSortIndex());
         attributes.put("is_leaf", isLeaf);
-        attributes.put("is_visible",componentTypeManage.getIsVisible());
-        attributes.put("icon",componentTypeManage.getIcon());
+        attributes.put("is_visible", componentTypeManage.getIsVisible());
+        attributes.put("icon", componentTypeManage.getIcon());
 
         if (!StringUtils.isEmpty(componentTypeManage.getParent())) {
             attributes.put("parentId", componentTypeManage.getParent().getId());
@@ -252,7 +252,6 @@ public class ComponentTypeManageServiceImpl implements IComponentTypeManageServi
     }
 
 
-
     @Override
     public Tree constructTreeAndComponent(ComponentTypeManage componentTypeManage) {
         Tree tree = new Tree();
@@ -273,10 +272,12 @@ public class ComponentTypeManageServiceImpl implements IComponentTypeManageServi
         attributes.put("component_type_name", componentTypeManage.getComponentTypeName());
         attributes.put("sort_index", componentTypeManage.getSortIndex());
         attributes.put("is_leaf", isLeaf);
-        attributes.put("is_visible",componentTypeManage.getIsVisible());
-        attributes.put("icon",componentTypeManage.getIcon());
+        attributes.put("is_visible", componentTypeManage.getIsVisible());
+        attributes.put("icon", componentTypeManage.getIcon());
         List<ComponentManage> componentManageList = componentManageDAO.findByComponentTypeManageId(componentTypeManage.getId());
-        attributes.put("component_manage",componentManageList);
+        Collections.sort(componentManageList, Comparator.comparing(ComponentManage::getSortIndex));
+
+        attributes.put("component_manage", componentManageList);
 
         if (!StringUtils.isEmpty(componentTypeManage.getParent())) {
             attributes.put("parentId", componentTypeManage.getParent().getId());

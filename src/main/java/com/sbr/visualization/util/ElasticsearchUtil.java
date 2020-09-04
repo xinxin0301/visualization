@@ -1,5 +1,6 @@
 package com.sbr.visualization.util;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sbr.springboot.context.SpringContextUtils;
 import com.sbr.visualization.bigscreendata.model.BigAttributeData;
 import com.sbr.visualization.bigscreendata.model.BigScreenData;
@@ -7,6 +8,9 @@ import com.sbr.visualization.config.EsConfig;
 import com.sbr.visualization.datamodel.model.DataModel;
 import com.sbr.visualization.datamodelattribute.model.DataModelAttribute;
 import com.sbr.visualization.datasourcemanage.model.DatasourceManage;
+import com.sbr.visualization.filter.dao.FilterDAO;
+import com.sbr.visualization.filter.model.Filter;
+import org.apache.commons.lang.StringUtils;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -14,6 +18,8 @@ import org.elasticsearch.client.GetAliasesResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.cluster.metadata.AliasMetaData;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.terms.ParsedLongTerms;
@@ -31,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @ClassName ElasticsearchUtil
@@ -43,6 +50,8 @@ public class ElasticsearchUtil {
     private static final Logger LOGGER = LoggerFactory.getLogger(DataBaseUtil.class);
 
     private static EsConfig esConfig = SpringContextUtils.getBean(EsConfig.class);
+
+    private static FilterDAO filterDAO = SpringContextUtils.getBean(FilterDAO.class);
 
 
     /**
@@ -60,7 +69,9 @@ public class ElasticsearchUtil {
      **/
     public static List<Map<String, String>> buildElasticsearch(BigScreenData bigScreenData, DataModel modelDAOOne, List<BigAttributeData> yAll, List<DataModelAttribute> allDataModelAttribute, DatasourceManage datasourceManage, List<DataModelAttribute> measureDataList) throws IOException {
         List<Map<String, String>> mapList = new ArrayList<>();
+        //构建es查询条件、聚合
         Map<String, Aggregation> aggregationMap = ElasticsearchUtil.buildAggregationBuilder(allDataModelAttribute, measureDataList, yAll, modelDAOOne, datasourceManage, bigScreenData);
+        //构建es结果数据
         ElasticsearchUtil.recursionElasticSearchData(allDataModelAttribute, aggregationMap, yAll, measureDataList, mapList, new LinkedHashMap<>(), new HashMap<>());
         return mapList;
     }
@@ -79,18 +90,40 @@ public class ElasticsearchUtil {
      * @Date 15:10 2020/8/5
      **/
     public static Map<String, Aggregation> buildAggregationBuilder(List<DataModelAttribute> dimensionsList, List<DataModelAttribute> measureList, List<BigAttributeData> value, DataModel dataModel, DatasourceManage datasourceManage, BigScreenData bigScreenData) throws IOException {
-        //获取ES
-        RestHighLevelClient esHighInit = esConfig.getEsHighInit(datasourceManage);
+        //设置索引
+        SearchRequest searchRequest = new SearchRequest(dataModel.getIndexes());
         //创建搜索器
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+
+        //处理ES条件查询
+        List<Filter> filterListAll = new ArrayList<>();
+        List<Filter> filterList = filterDAO.findByDataModelId(dataModel.getId());
+        if (filterList != null && filterList.size() > 0) {
+            //添加数据模型过滤器
+            filterListAll.addAll(filterList);
+            if (bigScreenData.getFilterList() != null) {
+                //添加大屏过滤器
+                filterList.addAll(bigScreenData.getFilterList());
+            }
+        } else if (bigScreenData.getFilterList() != null) {
+            filterList.addAll(bigScreenData.getFilterList());
+        }
+        //处理es条件
+        if (filterListAll != null && filterListAll.size() > 0) {
+            BoolQueryBuilder boolQueryBuilder = ElasticsearchUtil.elasticsearchGetData(filterListAll);
+            if (boolQueryBuilder != null) {
+                //设置查询条件
+                searchSourceBuilder.query(boolQueryBuilder);
+            }
+        }
+        //获取ES
+        RestHighLevelClient esHighInit = esConfig.getEsHighInit(datasourceManage);
         //构建分组聚合
         TermsAggregationBuilder termsAggregationBuilder = AggregationBuilders.terms(dimensionsList.get(0).getFieldsName()).field(dimensionsList.get(0).getFieldsName()).size(bigScreenData.getLimit());
         //构建条件
         getTermsAggregationBuilder(dimensionsList, bigScreenData, termsAggregationBuilder, 1, value, measureList);
         //条件放入查询器
         searchSourceBuilder.aggregation(termsAggregationBuilder);
-        //设置索引
-        SearchRequest searchRequest = new SearchRequest(dataModel.getIndexes());
         searchRequest.source(searchSourceBuilder);
         SearchResponse search = esHighInit.search(searchRequest, RequestOptions.DEFAULT);
         Map<String, Aggregation> asMap = search.getAggregations().getAsMap();
@@ -283,4 +316,204 @@ public class ElasticsearchUtil {
             throw e;
         }
     }
+
+
+    /**
+     * @param operator  连接条件是AND must 还是 OR should
+     * @param type      查询类型
+     * @param name      查询字段
+     * @param value     查询值
+     * @param boolQuery 查询对象
+     * @return void
+     * @Author zxx
+     * @Description //TODO elasticSearch 查询条件
+     * @Date 14:07 2020/9/1
+     **/
+    public static void elasticSearchSearchCondition(String operator, String type, String name, Object value, BoolQueryBuilder boolQuery) {
+        if (operator == null) {
+            List<String> valueList = (List<String>) ((List) value).stream().collect(Collectors.toList());
+            boolQuery.must(QueryBuilders.termsQuery(name, valueList));
+        } else {
+            if (operator.equals("AND")) {//包含以下所有条件
+                switch (type) {
+                    case "include"://包含
+                        boolQuery.must(QueryBuilders.wildcardQuery(name, "*" + value + "*"));
+                        break;
+                    case "start"://开始于
+                        boolQuery.must(QueryBuilders.wildcardQuery(name, value + "*"));
+                        break;
+                    case "end"://結束于
+                        boolQuery.must(QueryBuilders.wildcardQuery(name, "*" + value));
+                        break;
+                    case "notIncluded"://不包含
+                        boolQuery.mustNot(QueryBuilders.wildcardQuery(name, "*" + value + "*"));
+                        break;
+                    case "equal"://等于
+                        boolQuery.must(QueryBuilders.termQuery(name, value));
+                        break;
+                    case "ineq"://不等于
+                        boolQuery.mustNot(QueryBuilders.termQuery(name, value));
+                        break;
+                    case "null"://等于NULL
+                        boolQuery.must(QueryBuilders.existsQuery(name));
+                        break;
+                    case "notNull"://不等于NULL
+                        boolQuery.mustNot(QueryBuilders.existsQuery(name));
+                        break;
+                    case "gt"://大于
+                        boolQuery.must(QueryBuilders.rangeQuery(name).gt(value));
+                        break;
+                    case "gte"://大于等于
+                        boolQuery.must(QueryBuilders.rangeQuery(name).gte(value));
+                        break;
+                    case "lt"://小于
+                        boolQuery.must(QueryBuilders.rangeQuery(name).lt(value));
+                        break;
+                    case "lte"://小于等于
+                        boolQuery.must(QueryBuilders.rangeQuery(name).lte(value));
+                        break;
+                }
+            } else if (operator.equals("OR")) {//包含以下任意条件
+                switch (type) {
+                    case "include"://包含
+                        boolQuery.should(QueryBuilders.wildcardQuery(name, "*" + value + "*"));
+                        break;
+                    case "start"://开始于
+                        boolQuery.should(QueryBuilders.wildcardQuery(name, value + "*"));
+                        break;
+                    case "end"://結束于
+                        boolQuery.should(QueryBuilders.wildcardQuery(name, "*" + value));
+                        break;
+                    case "notIncluded"://不包含
+                        boolQuery.should(new BoolQueryBuilder().mustNot(QueryBuilders.wildcardQuery(name, "*" + value + "*")));
+                        break;
+                    case "equal"://等于
+                        boolQuery.should(QueryBuilders.termQuery(name, value));
+                        break;
+                    case "ineq"://不等于
+                        boolQuery.should(new BoolQueryBuilder().mustNot(QueryBuilders.termQuery(name, value)));
+                        break;
+                    case "null"://等于NULL
+                        boolQuery.should(QueryBuilders.existsQuery(name));
+                        break;
+                    case "notNull"://不等于NULL
+                        boolQuery.should(new BoolQueryBuilder().mustNot(QueryBuilders.existsQuery(name)));
+                        break;
+                    case "gt"://大于
+                        boolQuery.should(QueryBuilders.rangeQuery(name).gt(value));
+                        break;
+                    case "gte"://大于等于
+                        boolQuery.should(QueryBuilders.rangeQuery(name).gte(value));
+                        break;
+                    case "lt"://小于
+                        boolQuery.should(QueryBuilders.rangeQuery(name).lt(value));
+                        break;
+                    case "lte"://小于等于
+                        boolQuery.should(QueryBuilders.rangeQuery(name).lte(value));
+                        break;
+                }
+            }
+        }
+    }
+
+
+    /**
+     * @param filterList 过滤器集合
+     * @return void
+     * @Author zxx
+     * @Description //TODO 数据模型获取所有数据
+     * @Date 13:52 2020/9/1
+     **/
+    public static BoolQueryBuilder elasticsearchGetData(List<Filter> filterList) throws IOException {
+        BoolQueryBuilder boolQuery = null;
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            boolQuery = new BoolQueryBuilder();
+            if (filterList != null && filterList.size() > 0) {
+                for (Filter filter : filterList) {
+
+                    //文本条件
+                    if (filter.getTextMatch() != null && StringUtils.isNotBlank(filter.getTextMatch())) {
+                        Map textMatchMap = objectMapper.readValue(filter.getTextMatch(), Map.class);
+                        String operator = (String) textMatchMap.get("operator");
+                        List<Map<String, Object>> value = (List<Map<String, Object>>) textMatchMap.get("value");
+                        for (Map<String, Object> map : value) {
+                            ElasticsearchUtil.elasticSearchSearchCondition(operator, (String) map.get("type"), (String) map.get("name"), map.get("value"), boolQuery);
+                        }
+                    }
+
+                    //列表条件
+                    if (filter.getListMatch() != null && StringUtils.isNotBlank(filter.getListMatch())) {
+                        Map listMatchMap = objectMapper.readValue(filter.getListMatch(), Map.class);
+                        String name = (String) listMatchMap.get("name");
+                        List<String> list = (List<String>) listMatchMap.get("list");
+                        ElasticsearchUtil.elasticSearchSearchCondition(null, null, name, list, boolQuery);
+                    }
+
+                    //时间条件查询
+                    if (filter.getDate() != null && StringUtils.isNotBlank(filter.getDate())) {
+                        Map dateMap = objectMapper.readValue(filter.getDate(), Map.class);
+                        String value = (String) dateMap.get("value");
+                        String name = (String) dateMap.get("name");
+                        Map<String, Object> map = (Map) dateMap.get("detail");
+                        elasticSearchDateCondition(name, value, map, boolQuery);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            LOGGER.error("构建Elasticsearch查询条件错误：", e);
+            throw e;
+        }
+        return boolQuery;
+    }
+
+
+    /**
+     * @param name      字段
+     * @param value     条件值
+     * @param map       自定义时间范围
+     * @param boolQuery
+     * @return void
+     * @Author zxx
+     * @Description //TODO es时间查询过滤
+     * @Date 17:00 2020/9/1
+     * @Param
+     **/
+    private static void elasticSearchDateCondition(String name, String value, Map<String, Object> map, BoolQueryBuilder boolQuery) {
+        //获取时间范围
+        Map<String, Object> dateEsRange = getDateEsRange(value, map);
+        String minDate = (String) dateEsRange.get("minDate");
+        String maxDate = (String) dateEsRange.get("maxDate");
+        boolQuery.must(QueryBuilders.rangeQuery(name).gte(minDate).lte(maxDate));
+    }
+
+
+    /**
+     * @param value 取值范围
+     * @return java.util.Map<java.lang.String, java.lang.Object>
+     * @Author zxx
+     * @Description //TODO 获取es查询时间条件
+     * @Date 15:19 2020/9/2
+     **/
+    private static Map<String, Object> getDateEsRange(String value, Map<String, Object> map) {
+        switch (value) {
+            case "beforeyesterday"://前天
+                map.put("minDate", "now-2d/d");
+                map.put("maxDate", "now-2d/d");
+                break;
+            case "yesterday"://昨天
+                map.put("minDate", "now-1d/d");
+                map.put("maxDate", "now-1d/d");
+                break;
+            case "today"://今天
+                map.put("minDate", "now/d");
+                map.put("maxDate", "now/d");
+                break;
+            case "cus"://自定义
+                break;
+        }
+        return map;
+    }
+
+
 }

@@ -1,6 +1,7 @@
 package com.sbr.visualization.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sbr.common.exception.SBRException;
 import com.sbr.common.finder.Finder;
 import com.sbr.springboot.context.SpringContextUtils;
 import com.sbr.springboot.json.InfoJson;
@@ -26,7 +27,7 @@ import java.util.stream.Collectors;
 
 /**
  * @ClassName DataBaseUtil
- * @Description TODO 数据源工具类
+ * @Description TODO Mysql数据源工具类
  * @Author zxx
  * @Version 1.0
  */
@@ -310,12 +311,12 @@ public class DataBaseUtil {
      * @Description //TODO 添加拼接sql条件判断，映射值匹配，包含新建计算维度
      * @Date 10:22 2020/6/18
      **/
-    public static StringBuffer buildVeidooSQL(List<DataModelAttribute> dataModelAttributes) {
+    public static StringBuffer buildVeidooSQL(List<DataModelAttribute> dataModelAttributes) throws SBRException {
         StringBuffer sqlBuffer = new StringBuffer();
         if (dataModelAttributes != null && dataModelAttributes.size() > 0) {
             dataModelAttributes.forEach(dataModelAttribute -> {
                 if (dataModelAttribute == null) {
-                    throw new RestResouceNotFoundException("维度不存在");
+                    throw new SBRException("维度不存在");
                 }
                 if (dataModelAttribute.getIsHide() == 2) {//不隐藏
                     //当前数据模型属性绑定映射值，需要翻译映射值处理
@@ -362,7 +363,7 @@ public class DataBaseUtil {
      * @Description //TODO 拼接聚合條件
      * @Date 10:21 2020/6/18
      **/
-    public static StringBuffer buildMeasureSQL(List<BigAttributeData> yAll) {
+    public static StringBuffer buildMeasureSQL(List<BigAttributeData> yAll) throws SBRException {
         StringBuffer sqlBuffer = new StringBuffer();
         if (yAll != null && yAll.size() > 0) {
             yAll.forEach(bigAttributeData -> {
@@ -370,7 +371,7 @@ public class DataBaseUtil {
                 if (bigAttributeData.getType().equals("m")) {
                     DataModelAttribute dataModelAttribute = dataModelAttributeDAO.findOne(bigAttributeData.getId());
                     if (dataModelAttribute == null) {
-                        throw new RestResouceNotFoundException("度量不存在");
+                        throw new SBRException("度量不存在");
                     }
                     if (bigAttributeData.getAggregator() == null || bigAttributeData.getAggregator().equals("")) {
                         //新建计算度量
@@ -867,7 +868,9 @@ public class DataBaseUtil {
                         //拼接排序条件
                         String sort = bigAttributeData.getSort();
                         //`tableName`.`name` decs
-                        sqlBuffer.append(" `" + dataModelAttribute.getTableName() + "`.`" + dataModelAttribute.getFieldsName() + "` " + sort + ",");
+//                        sqlBuffer.append(" `" + dataModelAttribute.getTableName() + "`.`" + dataModelAttribute.getFieldsName() + "` " + sort + ",");
+                        //修改排序问题，排序使用随机别名排序
+                        sqlBuffer.append(" `" + dataModelAttribute.getRandomAlias() + "` " + sort + ",");
                     }
                 }
             });
@@ -971,9 +974,27 @@ public class DataBaseUtil {
         if (bigScreenData.getBiglinkageData() != null) {
             //获取模型属性
             DataModelAttribute dataModelAttribute = dataModelAttributeDAO.findOne(bigScreenData.getBiglinkageData().getDataModelAttributeId());
+
+            //如果被联动的模型属性，绑定了数据映射，那么就应该获取数据映射的值，然后判断传过来的值是否等于映射的值，如果存在则取映射的原始值作为联动条件，否则的话直接用传过来的联动值
+            String value = "";
+            if (dataModelAttribute.getMappingManage() != null) {
+                //找到对应的数据映射值
+                List<MappingData> mappingDataList = mappingDataDAO.findByMappingManageId(dataModelAttribute.getMappingManage().getId());
+                for (MappingData mappingData : mappingDataList) {
+                    if (mappingData.getMappingData().equals(bigScreenData.getBiglinkageData().getValue())) {
+                        //获取原始值
+                        value = mappingData.getOriginalData();
+                        break;
+                    }
+                }
+            } else {
+                //直接使用传递值
+                value = bigScreenData.getBiglinkageData().getValue();
+            }
+
             StringBuffer sqlbuffer = new StringBuffer();
             //拼接SQL条件
-            buidTextMatch("", "`" + dataModelAttribute.getTableName() + "`.`" + dataModelAttribute.getFieldsName() + "`", bigScreenData.getBiglinkageData().getLinkType(), bigScreenData.getBiglinkageData().getValue(), param, sqlbuffer, null);
+            buidTextMatch("", "`" + dataModelAttribute.getTableName() + "`.`" + dataModelAttribute.getFieldsName() + "`", bigScreenData.getBiglinkageData().getLinkType(), value, param, sqlbuffer, null);
             //如果之前有条件
             if (whereSQL != null && StringUtils.isNotEmpty(whereSQL)) {
                 whereSQL += " AND " + sqlbuffer.toString();
@@ -1032,12 +1053,41 @@ public class DataBaseUtil {
      * @Param
      **/
     public static List<DataModelAttribute> findBigAttributeDataByListId(List<BigAttributeData> value) {
-        List<DataModelAttribute> valueDataList;
+        List<DataModelAttribute> valueDataList = null;
         List<String> idList = value.stream().map(BigAttributeData::getId).collect(Collectors.toList());
-        Finder finder = new Finder();
-        finder.appendFilter("id", idList, com.sbr.common.finder.Filter.OperateType.OPERATE_IN);
-        valueDataList = dataModelAttributeDAO.findByFinder(finder);
+        if (idList != null && idList.size() > 0) {
+            Finder finder = new Finder();
+            finder.appendFilter("id", idList, com.sbr.common.finder.Filter.OperateType.OPERATE_IN);
+            valueDataList = dataModelAttributeDAO.findByFinder(finder);
+        }
         return valueDataList;
+    }
+
+
+    /**
+     * @param y
+     * @param dataModelAttribute
+     * @return void
+     * @Author zxx
+     * @Description //TODO 修改展示名称
+     * @Date 11:13 2020/8/25
+     * @Param
+     **/
+    public static String buildShowName(List<BigAttributeData> y, DataModelAttribute dataModelAttribute) {
+        String name = "";
+        if (y != null && y.size() > 0) {
+            for (BigAttributeData bigAttributeData : y) {
+                if (bigAttributeData.getAlias() != null && bigAttributeData.getId().equals(dataModelAttribute.getId())) {
+                    name = bigAttributeData.getAlias();//传递过来的展示名称
+                    break;
+                }
+            }
+            //如果为空，取属性别名
+            if (org.apache.commons.lang3.StringUtils.isBlank(name)) {
+                name = dataModelAttribute.getFieldsAlias();
+            }
+        }
+        return name;
     }
 
 
