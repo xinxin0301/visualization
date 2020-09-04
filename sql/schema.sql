@@ -35,7 +35,7 @@ CREATE TABLE `component_manage` (
   `is_use_data` int(11) DEFAULT NULL COMMENT '是否使用数据属性1:是 2:否',
   `is_open_drilldown` int(11) DEFAULT NULL COMMENT '是否开启下钻1:开启 2:不开启',
   `is_open_linkage` int(11) DEFAULT NULL COMMENT '是否开启联动1:开启 2:不开启',
-  `chart_form_data` text CHARACTER SET utf8 COLLATE utf8_bin NULL COMMENT '组件默认配置表单',
+  `chart_form_data` text COLLATE utf8_bin COMMENT '组件默认配置表单',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='元组件管理';
 
@@ -91,7 +91,7 @@ CREATE TABLE `data_model` (
   `sql_condition` longtext COLLATE utf8_bin COMMENT 'SQL条件',
   `sql_param` longtext COLLATE utf8_bin COMMENT 'SQL参数',
   `sql_show` longtext COLLATE utf8_bin COMMENT 'SQL展示使用',
-  `indexes` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin NULL DEFAULT NULL COMMENT '索引名称',
+  `indexes` varchar(255) COLLATE utf8_bin DEFAULT NULL COMMENT '索引名称',
   PRIMARY KEY (`id`),
   KEY `FK_Reference_6` (`datasource_manage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='数据模型管理';
