@@ -2,13 +2,16 @@ package com.sbr.visualization.controlpanel.designmode.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.sbr.visualization.controlpanel.componenttypemanage.model.ComponentTypeManage;
 import org.hibernate.annotations.GenericGenerator;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 描述：设计模型模型
@@ -28,6 +31,13 @@ public class DesignModel {
     @GenericGenerator(name = "idGenerator", strategy = "com.sbr.ms.springdata.keygenerator.KeyGenerator")
     @JsonProperty(value = "id")
     private String id;
+
+    /**
+     * 父节点ID
+     */
+    @ManyToOne
+    @JoinColumn(name = "parent_id")
+    private DesignModel parent;
 
     /**
      * 名称
@@ -119,6 +129,42 @@ public class DesignModel {
     @JsonIgnore
     @Transient
     private List<String> ids;
+
+
+    /**
+     * 子节点
+     */
+    @JsonIgnore
+    @Transient
+    private List<DesignModel> typeChildren = new ArrayList<DesignModel>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "parent")
+    private Set<DesignModel> children;
+
+    public DesignModel getParent() {
+        return parent;
+    }
+
+    public void setParent(DesignModel parent) {
+        this.parent = parent;
+    }
+
+    public List<DesignModel> getTypeChildren() {
+        return typeChildren;
+    }
+
+    public void setTypeChildren(List<DesignModel> typeChildren) {
+        this.typeChildren = typeChildren;
+    }
+
+    public Set<DesignModel> getChildren() {
+        return children;
+    }
+
+    public void setChildren(Set<DesignModel> children) {
+        this.children = children;
+    }
 
     public List<String> getIds() {
         return ids;

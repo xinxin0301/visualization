@@ -1,14 +1,18 @@
 package com.sbr.visualization.controlpanel.designmode.controller;
 
+import com.sbr.common.entity.Tree;
 import com.sbr.common.finder.Finder;
 import com.sbr.common.finder.FinderFactory;
 import com.sbr.common.page.Page;
 import com.sbr.common.page.PageFactory;
 import com.sbr.springboot.controller.BaseController;
 import com.sbr.springboot.json.InfoJson;
+import com.sbr.springboot.rest.exception.RestIllegalArgumentException;
+import com.sbr.visualization.controlpanel.componenttypemanage.model.ComponentTypeManage;
 import com.sbr.visualization.controlpanel.designmode.model.DesignModel;
 import com.sbr.visualization.controlpanel.designmode.service.IDesignModelService;
 import org.apache.catalina.servlet4preview.http.HttpServletRequest;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -117,6 +121,93 @@ public class DesignModelController extends BaseController {
             });
             infoJson.setSuccess(true);
             infoJson.setDescription("删除成功！");
+        }
+        return infoJson;
+    }
+
+
+    /**
+     * @return java.util.List<com.sbr.common.entity.Tree>
+     * @Author 张鑫鑫
+     * @Description //TODO 大屏设计模型树
+     * @Date 16:13 2020/9/7
+     * @Param [req, res]
+     **/
+    @GetMapping(value = "/v1/design-model/trees")
+    public List<Tree> trees(HttpServletRequest req, HttpServletResponse res) {
+        Finder finder = FinderFactory.createFromRequestParamAccordingEntityClass(req, DesignModel.class);
+        List<DesignModel> designModelList = designModelService.findByFinder(finder);
+        return designModelService.constructTree(designModelList);
+    }
+
+    /**
+     * @return com.sbr.visualization.controlpanel.designmode.model.DesignModel
+     * @Author 张鑫鑫
+     * @Description //TODO 新增大屏设计模型树
+     * @Date 16:16 2020/9/7
+     * @Param [designModel]
+     **/
+    @PostMapping(value = "/v1/design-model/trees")
+    public DesignModel createTree(@Valid @RequestBody DesignModel designModel) {
+        //父节点为空，设置父节点为NULL
+        if (designModel.getParent() == null || StringUtils.isEmpty(designModel.getParent().getId())) {
+            designModel.setParent(null);
+        }
+        return designModelService.create(designModel);
+    }
+
+
+    /**
+     * @return com.sbr.visualization.controlpanel.componenttypemanage.model.ComponentTypeManage
+     * @Author 张鑫鑫
+     * @Description //TODO 编辑大屏设计模型树
+     * @Date 16:17 2020/9/7
+     * @Param [id, componentTypeManage]
+     **/
+    @PatchMapping(value = "/v1/design-model/trees/{id}")
+    public DesignModel updateTree(@PathVariable("id") String id, @RequestBody DesignModel designModel) throws Exception {
+        designModel.setId(id);
+        //上级节点不能选择自己
+        if (designModel.getParent() != null && StringUtils.isNotEmpty(designModel.getParent().getId())) {
+            if (designModel.getParent().getId().equals(id)) {
+                throw new RestIllegalArgumentException("上级类型不能选择自己!");
+            }
+            //上级节点不能选择为自己的子节点
+            List<DesignModel> designModelList = new ArrayList<>();
+            designModelService.structureChildrenId(designModelList, id);
+            if (designModelList != null && designModelList.size() > 0) {
+                designModelList.stream().forEach(designModel1 -> {
+                    if (designModel1.getId().equals(id)) {
+                        throw new RestIllegalArgumentException("上级类型不能选择自己的子节点!");
+                    }
+                });
+            }
+        }
+        return designModelService.patchUpdate(designModel);
+    }
+
+
+    /**
+     * @Author 张鑫鑫
+     * @Description //TODO 删除
+     * @Date 16:21 2020/9/7
+     * @Param [id]
+     * @return com.sbr.springboot.json.InfoJson
+     **/
+    @DeleteMapping(value = "/v1/design-model/trees/{id}")
+    public InfoJson deleteTreeById(@PathVariable("id") String id) throws Exception {
+        InfoJson infoJson = new InfoJson();
+        if (StringUtils.isNotEmpty(id)) {
+            List<DesignModel> designModelList = new ArrayList<>();
+            designModelService.structureChildrenId(designModelList, id);
+            if (designModelList != null && designModelList.size() > 0) {
+                infoJson.setSuccess(false);
+                infoJson.setDescription("当前节点下存在子节点不允许删除，请先删除子节点！");
+            } else {
+                designModelService.delete(id);
+                infoJson.setSuccess(true);
+                infoJson.setDescription("删除成功！");
+            }
         }
         return infoJson;
     }

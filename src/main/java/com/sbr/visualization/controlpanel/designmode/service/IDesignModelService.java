@@ -1,5 +1,6 @@
 package com.sbr.visualization.controlpanel.designmode.service;
 
+import com.sbr.common.entity.Tree;
 import com.sbr.common.finder.Finder;
 import com.sbr.common.page.Page;
 import com.sbr.visualization.controlpanel.designmode.model.DesignModel;
@@ -84,4 +85,16 @@ public interface IDesignModelService {
      */
     public DesignModel putUpdate(DesignModel designModel);
 
+    /**
+     * @Author 张鑫鑫
+     * @Description //TODO 大屏设计模型树
+     * @Date 16:07 2020/9/7
+     * @Param [typeManages]
+     * @return java.util.List<com.sbr.common.entity.Tree>
+     **/
+    List<Tree> constructTree(List<DesignModel> designModelList);
+
+    Tree constructTree(DesignModel designModel);
+
+    List<DesignModel> structureChildrenId(List<DesignModel> designModelList, String id);
 }

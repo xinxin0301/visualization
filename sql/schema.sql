@@ -155,6 +155,7 @@ DROP TABLE IF EXISTS `design_model`;
 
 CREATE TABLE `design_model` (
   `id` varchar(32) COLLATE utf8_bin NOT NULL COMMENT '主键',
+  `parent_id` varchar(32) CHARACTER SET utf8 COLLATE utf8_bin NULL DEFAULT NULL COMMENT '父节点ID',
   `model_name` varchar(512) COLLATE utf8_bin DEFAULT NULL COMMENT '名称',
   `model_describe` varchar(1024) COLLATE utf8_bin DEFAULT NULL COMMENT '描述',
   `model_json` longtext COLLATE utf8_bin COMMENT '模型json',
