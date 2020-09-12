@@ -121,9 +121,7 @@ public class BigScreenPieDataUtil {
         List<BigAttributeData> x = bigScreenData.getX();
         List<DataModelAttribute> dimensionsDataList = new ArrayList<>();
         if (x != null && x.size() > 0) {
-            for (BigAttributeData bigAttributeData : x) {
-                dimensionsDataList.add(dataModelAttributeDAO.findOne(bigAttributeData.getId()));
-            }
+            dimensionsDataList = DataBaseUtil.findBigAttributeDataByListId(x);
             sortList.addAll(x);
         }
 

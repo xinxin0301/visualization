@@ -2,6 +2,7 @@ package com.sbr.visualization.bigscreendata.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+
 /**
  * @ClassName BigAttributeData 大屏属性数据
  * @Description TODO
@@ -53,6 +54,20 @@ public class BigAttributeData {
      **/
     @JsonProperty(value = "table_col")
     private TableCol tableCol;
+
+    /**
+     * 时间维度条件
+     */
+    @JsonProperty(value = "date_type")
+    private String dateType;
+
+    public String getDateType() {
+        return dateType;
+    }
+
+    public void setDateType(String dateType) {
+        this.dateType = dateType;
+    }
 
     public TableCol getTableCol() {
         return tableCol;

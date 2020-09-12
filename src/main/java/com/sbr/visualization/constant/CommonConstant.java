@@ -1,5 +1,7 @@
 package com.sbr.visualization.constant;
 
+import com.sbr.visualization.bigscreendata.service.impl.BigScreenPieDataServiceImpl;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -79,6 +81,20 @@ public class CommonConstant {
      */
     public static final String STACKING_BAR = "stackBar";
 
+    /**
+     * 堆叠柱图
+     */
+    public static final String GAUGE = "gauge";
+
+    /**
+     * 水球图
+     */
+    public static final String LIQUID_FILL = "liquid-fill";
+
+    /**
+     * 字符云
+     */
+    public static final String WORDCLOUD = "wordCloud";
 
     /*                               度量參數                                       */
     public static Map<String,Object> measureMap = new HashMap<>();

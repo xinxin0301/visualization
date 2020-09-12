@@ -73,7 +73,7 @@ public class DataBaseUtil {
         try {
             //声明数据源（jdbc:mysql://localhost:端口号/数据库名）
             String url = "jdbc:mysql://" + datasourceManage.getDatabaseAddress() + ":" + datasourceManage.getPort() + "/" + datasourceManage.getDatabaseName() +
-                    "?useUnicode=true&characterEncoding=UTF-8&allowMultiQueries=true&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=UTC&useSSL=false";
+                    "?useUnicode=true&characterEncoding=UTF-8&allowMultiQueries=true&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=UTC&useSSL=false&serverTimezone=Asia/Shanghai";
             //数据库账号
             String user = datasourceManage.getUsername();
             //数据库密码
@@ -296,8 +296,13 @@ public class DataBaseUtil {
         StringBuffer groupSQL = new StringBuffer();
         if (dataModelAttributes != null && dataModelAttributes.size() > 0) {
             for (DataModelAttribute dataModelAttribute : dataModelAttributes) {
-                //获取当前数据模型属性
-                groupSQL.append("`" + dataModelAttribute.getTableName() + "`. " + dataModelAttribute.getFieldsName() + ",");
+                //处理时间类型
+                if (dataModelAttribute.getDateType() != null && StringUtils.isNotBlank(dataModelAttribute.getDateType())) {
+                    buidDateTypeSQL(groupSQL, dataModelAttribute, dataModelAttribute.getDateType(), false);
+                } else {
+                    //获取当前数据模型属性
+                    groupSQL.append("`" + dataModelAttribute.getTableName() + "`. " + dataModelAttribute.getFieldsName() + ",");
+                }
             }
         }
         return groupSQL;
@@ -343,11 +348,16 @@ public class DataBaseUtil {
                         }
 
                     } else {
-                        if (dataModelAttribute.getIsNewCalculation() == null || dataModelAttribute.getIsNewCalculation() == 0) {//否
-                            sqlBuffer.append("`" + dataModelAttribute.getTableName() + "`. " + dataModelAttribute.getFieldsName() + " AS '" + dataModelAttribute.getRandomAlias() + "',");
+                        //处理时间
+                        if (dataModelAttribute.getDateType() != null && StringUtils.isNotBlank(dataModelAttribute.getDateType())) {
+                            buidDateTypeSQL(sqlBuffer, dataModelAttribute, dataModelAttribute.getDateType(), true);
+                        } else {
+                            if (dataModelAttribute.getIsNewCalculation() == null || dataModelAttribute.getIsNewCalculation() == 0) {//否
+                                sqlBuffer.append("`" + dataModelAttribute.getTableName() + "`. " + dataModelAttribute.getFieldsName() + " AS '" + dataModelAttribute.getRandomAlias() + "',");
 
-                        } else if (dataModelAttribute.getIsNewCalculation() == 1) {//是新建计算维度
-                            sqlBuffer.append(" " + dataModelAttribute.getExpression() + " AS " + dataModelAttribute.getRandomAlias() + "");
+                            } else if (dataModelAttribute.getIsNewCalculation() == 1) {//是新建计算维度
+                                sqlBuffer.append(" " + dataModelAttribute.getExpression() + " AS " + dataModelAttribute.getRandomAlias() + "");
+                            }
                         }
                     }
                 }
@@ -950,10 +960,14 @@ public class DataBaseUtil {
         //度量条件处理SQL
         String measure = StringUtils.isEmpty(measureSQL.toString()) ? "" : measureSQL.substring(0, measureSQL.length() - 1);
         //处理分组SQL
-        String group = StringUtils.isEmpty(groupBy.toString()) ? "" : groupBy.substring(0, groupBy.length() - 1);
-        if (group != null && StringUtils.isNotEmpty(group)) {
-            group = " GROUP BY " + group;
+        String group = "";
+        if (groupBy != null) {
+            group = StringUtils.isEmpty(groupBy.toString()) ? "" : groupBy.substring(0, groupBy.length() - 1);
+            if (group != null && StringUtils.isNotEmpty(group)) {
+                group = " GROUP BY " + group;
+            }
         }
+
         //处理排序
         String sort = StringUtils.isEmpty(sortSQL.toString()) ? "" : sortSQL.substring(0, sortSQL.length() - 1);
         if (sort != null && StringUtils.isNotEmpty(sort)) {
@@ -1053,12 +1067,16 @@ public class DataBaseUtil {
      * @Param
      **/
     public static List<DataModelAttribute> findBigAttributeDataByListId(List<BigAttributeData> value) {
-        List<DataModelAttribute> valueDataList = null;
-        List<String> idList = value.stream().map(BigAttributeData::getId).collect(Collectors.toList());
-        if (idList != null && idList.size() > 0) {
-            Finder finder = new Finder();
-            finder.appendFilter("id", idList, com.sbr.common.finder.Filter.OperateType.OPERATE_IN);
-            valueDataList = dataModelAttributeDAO.findByFinder(finder);
+        List<DataModelAttribute> valueDataList = new ArrayList<>();
+        for (BigAttributeData bigAttributeData : value) {
+            DataModelAttribute attribute = dataModelAttributeDAO.findOne(bigAttributeData.getId());
+            if (attribute != null) {
+                //处理时间类型特殊条件
+                if (bigAttributeData.getDateType() != null && StringUtils.isNotBlank(bigAttributeData.getDateType())) {
+                    attribute.setDateType(bigAttributeData.getDateType());
+                }
+                valueDataList.add(attribute);
+            }
         }
         return valueDataList;
     }
@@ -1090,5 +1108,82 @@ public class DataBaseUtil {
         return name;
     }
 
-
+    /**
+     * @return java.lang.StringBuffer
+     * @Author 张鑫鑫
+     * @Description //TODO 维度时间类型条件
+     * @Date 16:27 2020/9/10
+     * @Param [sqlBuffer, dataModelAttribute, dateType,flag]
+     **/
+    private static void buidDateTypeSQL(StringBuffer sqlBuffer, DataModelAttribute dataModelAttribute, String dateType, boolean flag) {
+        //维度
+        if (flag) {
+            switch (dateType) {
+                case "QUARTER"://季度
+                    sqlBuffer.append("CONCAT('第',QUARTER(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'季度')AS '" + dataModelAttribute.getRandomAlias() + "',");
+                    break;
+                case "MONTH"://月
+                    sqlBuffer.append("CONCAT(MONTH(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'月')AS '" + dataModelAttribute.getRandomAlias() + "',");
+                    break;
+                case "WEEK"://第几周
+                    sqlBuffer.append("CONCAT('第',WEEK(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'周')AS '" + dataModelAttribute.getRandomAlias() + "',");
+                    break;
+                case "DAYOFWEEK"://星期几
+                    sqlBuffer.append("CONCAT('星期',WEEKDAY(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + ")+1)AS '" + dataModelAttribute.getRandomAlias() + "',");
+                    break;
+                case "DAY"://查询日
+                    sqlBuffer.append("CONCAT(DATE_FORMAT(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + ",'%d'),'日')AS '" + dataModelAttribute.getRandomAlias() + "',");
+                    break;
+                case "YEAR"://查询年
+                    sqlBuffer.append("CONCAT(YEAR(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'年')AS '" + dataModelAttribute.getRandomAlias() + "',");
+                    break;
+                case "YEAR-QUARTER"://查询年-季度
+                    sqlBuffer.append("CONCAT(YEAR(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'年',QUARTER(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'季度')AS '" + dataModelAttribute.getRandomAlias() + "',");
+                    break;
+                case "YEAR-MONTH"://查询年-月
+                    sqlBuffer.append("CONCAT(YEAR(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'年',MONTH(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'月')AS '" + dataModelAttribute.getRandomAlias() + "',");
+                    break;
+                case "YEAR-WEEK"://查询年-第几周
+                    sqlBuffer.append("CONCAT(YEAR(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'年','第',WEEK(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'周')AS '" + dataModelAttribute.getRandomAlias() + "',");
+                    break;
+                case "YEAR-MONTH-DAY"://查询年-月-日
+                    sqlBuffer.append("CONCAT(YEAR(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'年',MONTH(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'月',DATE_FORMAT(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + ", '%d'),'日')AS '" + dataModelAttribute.getRandomAlias() + "',");
+                    break;
+            }
+        } else {
+            //分组
+            switch (dateType) {
+                case "QUARTER"://季度
+                    sqlBuffer.append("CONCAT('第',QUARTER(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'季度'),");
+                    break;
+                case "MONTH"://月
+                    sqlBuffer.append("CONCAT(MONTH(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'月'),");
+                    break;
+                case "WEEK"://第几周
+                    sqlBuffer.append("CONCAT('第',WEEK(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'周'),");
+                    break;
+                case "DAYOFWEEK"://星期几
+                    sqlBuffer.append("CONCAT('星期',WEEKDAY(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + ")+1),");
+                    break;
+                case "DAY"://查询日
+                    sqlBuffer.append("CONCAT(DATE_FORMAT(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + ",'%d'),'日'),");
+                    break;
+                case "YEAR"://查询年
+                    sqlBuffer.append("CONCAT(YEAR(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'年'),");
+                    break;
+                case "YEAR-QUARTER"://查询年-季度
+                    sqlBuffer.append("CONCAT(YEAR(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'年',QUARTER(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'季度'),");
+                    break;
+                case "YEAR-MONTH"://查询年-月
+                    sqlBuffer.append("CONCAT(YEAR(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'年',MONTH(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'月'),");
+                    break;
+                case "YEAR-WEEK"://查询年-第几周
+                    sqlBuffer.append("CONCAT(YEAR(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'年','第',WEEK(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'周'),");
+                    break;
+                case "YEAR-MONTH-DAY"://查询年-月-日
+                    sqlBuffer.append("CONCAT(YEAR(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'年',MONTH(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + "),'月',DATE_FORMAT(`" + dataModelAttribute.getTableName() + "`." + dataModelAttribute.getFieldsName() + ", '%d'),'日'),");
+                    break;
+            }
+        }
+    }
 }

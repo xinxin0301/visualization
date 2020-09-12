@@ -51,9 +51,7 @@ public class BigStackingBarDataUtil {
         List<DataModelAttribute> xValueList = null;
         if (x != null && x.size() > 0) {
             xValueList = new ArrayList<>();
-            for (BigAttributeData bigAttributeData : x) {
-                xValueList.add(dataModelAttributeDAO.findOne(bigAttributeData.getId()));
-            }
+            xValueList = DataBaseUtil.findBigAttributeDataByListId(x);
             sortListAll.addAll(x);
             dimensionListAll.addAll(xValueList);
         }

@@ -146,6 +146,21 @@ public class DataModelAttribute {
      */
     private String expression;
 
+    /**
+     * 时间维度条件-虚拟字段
+     */
+    @Transient
+    @JsonProperty(value = "date_Type")
+    private String dateType;
+
+    public String getDateType() {
+        return dateType;
+    }
+
+    public void setDateType(String dateType) {
+        this.dateType = dateType;
+    }
+
     public Integer getIsNewCalculation() {
         return isNewCalculation;
     }

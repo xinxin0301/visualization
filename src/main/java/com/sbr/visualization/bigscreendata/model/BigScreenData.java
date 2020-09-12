@@ -47,6 +47,12 @@ public class BigScreenData {
     private List<BigAttributeData> value;
 
     /**
+     * 没有y轴数据，文本、雷达图
+     **/
+    @JsonProperty(value = "max")
+    private List<BigAttributeData> max;
+
+    /**
      * color
      **/
     private List<BigAttributeData> color;
@@ -64,7 +70,7 @@ public class BigScreenData {
     private List<BigAttributeData> targetNode;
 
     /**
-     * 地图地点的名称
+     * 地图地点的名称、字符
      **/
     private List<BigAttributeData> name;
 
@@ -114,6 +120,83 @@ public class BigScreenData {
      **/
     @JsonProperty(value = "table_not_aggregate")
     private Boolean tableNotAggregate;
+
+    /**
+     *  最大值
+     **/
+    @JsonProperty(value = "max_value")
+    private Integer maxValue;
+
+    /**
+     *  最小值
+     **/
+    @JsonProperty(value = "min_value")
+    private Integer minValue;
+
+    /**
+     *  隱藏指标名称
+     **/
+    @JsonProperty(value = "hide_name")
+    private boolean hideName;
+
+    /**
+     *  单位
+     **/
+    private String unit;
+
+    /**
+     *  小数转百分比
+     **/
+    @JsonProperty(value = "turn_percentage")
+    private boolean turnPercentage;
+
+    public boolean isTurnPercentage() {
+        return turnPercentage;
+    }
+
+    public void setTurnPercentage(boolean turnPercentage) {
+        this.turnPercentage = turnPercentage;
+    }
+
+    public boolean isHideName() {
+        return hideName;
+    }
+
+    public void setHideName(boolean hideName) {
+        this.hideName = hideName;
+    }
+
+    public String getUnit() {
+        return unit;
+    }
+
+    public void setUnit(String unit) {
+        this.unit = unit;
+    }
+
+    public List<BigAttributeData> getMax() {
+        return max;
+    }
+
+    public void setMax(List<BigAttributeData> max) {
+        this.max = max;
+    }
+
+    public Integer getMaxValue() {
+        return maxValue;
+    }
+
+    public void setMaxValue(Integer maxValue) {
+        this.maxValue = maxValue;
+    }
+
+    public Integer getMinValue() {
+        return minValue;
+    }
+
+    public void setMinValue(Integer minValue) {
+        this.minValue = minValue;
+    }
 
     public Boolean getTableNotAggregate() {
         return tableNotAggregate;
