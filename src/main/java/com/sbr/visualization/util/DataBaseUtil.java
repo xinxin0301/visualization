@@ -1017,6 +1017,39 @@ public class DataBaseUtil {
             }
         }
 
+        //关联Url参数
+        if (bigScreenData.getQueryData() != null) {
+            //获取模型属性
+            DataModelAttribute dataModelAttribute = dataModelAttributeDAO.findOne(bigScreenData.getQueryData().getDataModelAttributeId());
+
+            //如果被联动的模型属性，绑定了数据映射，那么就应该获取数据映射的值，然后判断传过来的值是否等于映射的值，如果存在则取映射的原始值作为联动条件，否则的话直接用传过来的联动值
+            String value = "";
+            if (dataModelAttribute.getMappingManage() != null) {
+                //找到对应的数据映射值
+                List<MappingData> mappingDataList = mappingDataDAO.findByMappingManageId(dataModelAttribute.getMappingManage().getId());
+                for (MappingData mappingData : mappingDataList) {
+                    if (mappingData.getMappingData().equals(bigScreenData.getQueryData().getValue())) {
+                        //获取原始值
+                        value = mappingData.getOriginalData();
+                        break;
+                    }
+                }
+            } else {
+                //直接使用传递值
+                value = bigScreenData.getQueryData().getValue();
+            }
+
+            StringBuffer sqlbuffer = new StringBuffer();
+            //拼接SQL条件
+            buidTextMatch("", "`" + dataModelAttribute.getTableName() + "`.`" + dataModelAttribute.getFieldsName() + "`", bigScreenData.getQueryData().getLinkType(), value, param, sqlbuffer, null);
+            //如果之前有条件
+            if (whereSQL != null && StringUtils.isNotEmpty(whereSQL)) {
+                whereSQL += " AND " + sqlbuffer.toString();
+            } else {//之前没有条件
+                whereSQL += " WHERE " + sqlbuffer.toString();
+            }
+        }
+
         if (joinList != null && joinList.size() > 0) {
             //获取JOINSQL，多表连接
             StringBuffer sqlJoinBuffer = DataBaseUtil.getJOINSqlByAssociation(modelDAOOne.getAssociation());
@@ -1186,4 +1219,48 @@ public class DataBaseUtil {
             }
         }
     }
+
+
+    /**
+     * @param bigScreenData 当前大屏对象
+     * @param modelDAOOne   当前数据模型对象
+     * @param param         SQL条件参数
+     * @return java.lang.String
+     * @Author zxx
+     * @Description //TODO 构建WHERE条件SQL语句 （大屏）给max使用
+     * @Date 16:27 2020/7/14
+     **/
+    public static String buildWhereSQLAndValue(BigScreenData bigScreenData, DataModel modelDAOOne, List<String> param) throws IOException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        String whereSQL = "";
+        if (bigScreenData.getValueFilterList() != null && bigScreenData.getValueFilterList().size() > 0) {
+            //如果数据模型存在SQL条件，统计图需要拼接上此条件
+            if (modelDAOOne.getSqlCondition() != null && StringUtils.isNotEmpty(modelDAOOne.getSqlCondition())) {
+                List<String> strList = new ArrayList<>();
+                //获取大屏过滤器条件，0条件SQL 1展示SQL
+                List<StringBuffer> stringBufferList = DataBaseUtil.buidWhereSQL(bigScreenData.getValueFilterList(), strList);
+                //拼接模型SQL，和条件SQL 截取AND
+                whereSQL = modelDAOOne.getSqlCondition() + " AND " + stringBufferList.get(0).substring(0, stringBufferList.get(0).length() - 3);
+                //获取SQL条件参数
+                String sqlParam = modelDAOOne.getSqlParam();
+                List<String> list = objectMapper.readValue(sqlParam, List.class);
+                list.addAll(strList);
+                param.addAll(list);
+            } else {
+                //0条件SQL 1展示SQL
+                List<StringBuffer> stringBufferList = DataBaseUtil.buidWhereSQL(bigScreenData.getValueFilterList(), param);
+                whereSQL = " WHERE" + stringBufferList.get(0).substring(0, stringBufferList.get(0).length() - 3);
+            }
+        } else {
+            if (modelDAOOne.getSqlCondition() != null && StringUtils.isNotEmpty(modelDAOOne.getSqlCondition())) {
+                String sqlParam = modelDAOOne.getSqlParam();
+                List<String> list = objectMapper.readValue(sqlParam, List.class);
+                param.addAll(list);
+                //拼接模型SQL
+                whereSQL = modelDAOOne.getSqlCondition();
+            }
+        }
+        return whereSQL;
+    }
+
 }

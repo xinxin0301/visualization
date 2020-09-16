@@ -1,5 +1,6 @@
 package com.sbr.visualization.bigscreendata.service.impl;
 
+import com.sbr.common.util.StringUtil;
 import com.sbr.springboot.json.InfoJson;
 import com.sbr.visualization.bigscreendata.model.BigAttributeData;
 import com.sbr.visualization.bigscreendata.model.BigScreenData;
@@ -58,8 +59,7 @@ public class BigScreenLiquidFillDataServiceImpl implements IBigScreenDataService
         List<BigAttributeData> sortListAll = new ArrayList<>();
         //获取度量
         List<BigAttributeData> valueData = bigScreenData.getValue();
-        //获取最大值
-        List<BigAttributeData> maxValueData = bigScreenData.getMax();
+
 
         //度量
         List<DataModelAttribute> yValueList = null;
@@ -71,18 +71,44 @@ public class BigScreenLiquidFillDataServiceImpl implements IBigScreenDataService
             yDataModelAttributeListAll.addAll(yValueList);
         }
 
-        //最大值
-        List<DataModelAttribute> maxValueList = null;
-        if (maxValueData != null && maxValueData.size() > 0) {
-            maxValueList = new ArrayList<>();
-            for (BigAttributeData bigAttributeData : maxValueData) {
-                maxValueList.add(dataModelAttributeDAO.findOne(bigAttributeData.getId()));
+        Double maxValue = 0.0;
+        if (bigScreenData.getMaxValue() != null) {
+            maxValue = Double.valueOf(bigScreenData.getMaxValue());
+        } else {
+            List<BigAttributeData> sortListAll1 = new ArrayList<>();
+            //获取最大值
+            List<BigAttributeData> maxValueData = bigScreenData.getMax();
+            //最大值
+            List<DataModelAttribute> maxValueList = null;
+            if (maxValueData != null && maxValueData.size() > 0) {
+                maxValueList = new ArrayList<>();
+                for (BigAttributeData bigAttributeData : maxValueData) {
+                    maxValueList.add(dataModelAttributeDAO.findOne(bigAttributeData.getId()));
+                }
+                sortListAll1.addAll(maxValueData);
             }
-            yListAll.addAll(maxValueData);
-            sortListAll.addAll(maxValueData);
-            yDataModelAttributeListAll.addAll(maxValueList);
-        }
+            //Mysql
+            StringBuffer sqlBuffer = null;
+            List<String> param = null;
+            if (modelDAOOne.getDatasourceManage().getDatabaseTypeManage().getDatabaseTypeName().equals(CommonConstant.MYSQL)) {
+                param = new ArrayList<>();
+                sqlBuffer = DataBaseUtil.buidSQL(bigScreenData, modelDAOOne, DataBaseUtil.buildMeasureSQL(maxValueData), null,
+                        null, DataBaseUtil.buildWhereSQL(bigScreenData, modelDAOOne, param), DataBaseUtil.buildSortSQL(sortListAll1), param);
+            }
+            List<Map<String, String>> chartDatas = null;
+            switch (modelDAOOne.getDatasourceManage().getDatabaseTypeManage().getDatabaseTypeName()) {
+                case CommonConstant.MYSQL:
+                    chartDatas = DataBaseUtil.getDatas(modelDAOOne.getDatasourceManage(), sqlBuffer.toString(), param);
+                    break;
+                case CommonConstant.ES:
+                    chartDatas = ElasticsearchUtil.buildElasticsearch(bigScreenData, modelDAOOne, maxValueData, null, modelDAOOne.getDatasourceManage(), maxValueList);
+                    break;
+            }
 
+            if (chartDatas != null) {
+                maxValue = Double.valueOf(chartDatas.get(0).get(maxValueList.get(0).getRandomAlias()));
+            }
+        }
 
         //Mysql
         StringBuffer sqlBuffer = null;
@@ -90,7 +116,7 @@ public class BigScreenLiquidFillDataServiceImpl implements IBigScreenDataService
         if (modelDAOOne.getDatasourceManage().getDatabaseTypeManage().getDatabaseTypeName().equals(CommonConstant.MYSQL)) {
             param = new ArrayList<>();
             sqlBuffer = DataBaseUtil.buidSQL(bigScreenData, modelDAOOne, DataBaseUtil.buildMeasureSQL(yListAll), null,
-                    null, DataBaseUtil.buildWhereSQL(bigScreenData, modelDAOOne, param), DataBaseUtil.buildSortSQL(sortListAll), param);
+                    null, DataBaseUtil.buildWhereSQLAndValue(bigScreenData, modelDAOOne, param), DataBaseUtil.buildSortSQL(sortListAll), param);
         }
         List<Map<String, String>> chartDatas = null;
         switch (modelDAOOne.getDatasourceManage().getDatabaseTypeManage().getDatabaseTypeName()) {
@@ -103,12 +129,6 @@ public class BigScreenLiquidFillDataServiceImpl implements IBigScreenDataService
         }
         Map<String, Object> resultMap = new HashMap<>();
         Double dataValue = 0.0;
-        Double maxValue = 0.0;
-        if (maxValueData != null && maxValueData.size() > 0) {
-            maxValue = Double.valueOf(chartDatas.get(0).get(maxValueList.get(0).getRandomAlias()));
-        } else {
-            maxValue = Double.valueOf(bigScreenData.getMaxValue());
-        }
         if (chartDatas != null) {
             dataValue = Double.valueOf(chartDatas.get(0).get(yValueList.get(0).getRandomAlias()));
         }

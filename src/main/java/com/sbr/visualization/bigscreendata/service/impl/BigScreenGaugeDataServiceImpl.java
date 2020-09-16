@@ -39,7 +39,7 @@ public class BigScreenGaugeDataServiceImpl implements IBigScreenDataService {
      * @Param [BigScreenData]
      **/
     @Override
-    public InfoJson analysisChartResult(BigScreenData bigScreenData) throws IOException {
+    public InfoJson analysisChartResult(BigScreenData bigScreenData) throws Exception {
         InfoJson infoJson = new InfoJson();
 
         //获取数据模型
@@ -55,8 +55,6 @@ public class BigScreenGaugeDataServiceImpl implements IBigScreenDataService {
         List<BigAttributeData> sortListAll = new ArrayList<>();
         //获取度量
         List<BigAttributeData> value = bigScreenData.getValue();
-        //获取最大值
-        List<BigAttributeData> maxValue = bigScreenData.getMax();
         //度量
         List<DataModelAttribute> yValueList = null;
         if (value != null && value.size() > 0) {
@@ -65,12 +63,43 @@ public class BigScreenGaugeDataServiceImpl implements IBigScreenDataService {
             yListAll.addAll(value);
             yDataModelAttributeListAll.addAll(yValueList);
         }
-        //最大值
-        List<DataModelAttribute> maxValueList = null;
-        if (maxValue != null && maxValue.size() > 0) {
-            maxValueList = DataBaseUtil.findBigAttributeDataByListId(maxValue);
-            yListAll.addAll(maxValue);
-            yDataModelAttributeListAll.addAll(maxValueList);
+
+        Double maxValue = 0.0;
+        if (bigScreenData.getMaxValue() != null) {
+            maxValue = Double.valueOf(bigScreenData.getMaxValue());
+        } else {
+            List<BigAttributeData> sortListAll1 = new ArrayList<>();
+            //获取最大值
+            List<BigAttributeData> maxValueData = bigScreenData.getMax();
+            //最大值
+            List<DataModelAttribute> maxValueList = null;
+            if (maxValueData != null && maxValueData.size() > 0) {
+                maxValueList = new ArrayList<>();
+                for (BigAttributeData bigAttributeData : maxValueData) {
+                    maxValueList.add(dataModelAttributeDAO.findOne(bigAttributeData.getId()));
+                }
+                sortListAll1.addAll(maxValueData);
+            }
+            //Mysql
+            StringBuffer sqlBuffer = null;
+            List<String> param = null;
+            if (modelDAOOne.getDatasourceManage().getDatabaseTypeManage().getDatabaseTypeName().equals(CommonConstant.MYSQL)) {
+                param = new ArrayList<>();
+                sqlBuffer = DataBaseUtil.buidSQL(bigScreenData, modelDAOOne, DataBaseUtil.buildMeasureSQL(maxValueData), null,
+                        null, DataBaseUtil.buildWhereSQL(bigScreenData, modelDAOOne, param), DataBaseUtil.buildSortSQL(sortListAll1), param);
+            }
+            List<Map<String, String>> chartDatas = null;
+            switch (modelDAOOne.getDatasourceManage().getDatabaseTypeManage().getDatabaseTypeName()) {
+                case CommonConstant.MYSQL:
+                    chartDatas = DataBaseUtil.getDatas(modelDAOOne.getDatasourceManage(), sqlBuffer.toString(), param);
+                    break;
+                case CommonConstant.ES:
+                    chartDatas = ElasticsearchUtil.buildElasticsearch(bigScreenData, modelDAOOne, maxValueData, null, modelDAOOne.getDatasourceManage(), maxValueList);
+                    break;
+            }
+            if (chartDatas != null) {
+                maxValue = Double.valueOf(chartDatas.get(0).get(maxValueList.get(0).getRandomAlias()));
+            }
         }
 
         //Mysql
@@ -79,34 +108,22 @@ public class BigScreenGaugeDataServiceImpl implements IBigScreenDataService {
         if (modelDAOOne.getDatasourceManage().getDatabaseTypeManage().getDatabaseTypeName().equals(CommonConstant.MYSQL)) {
             param = new ArrayList<>();
             sqlBuffer = DataBaseUtil.buidSQL(bigScreenData, modelDAOOne, DataBaseUtil.buildMeasureSQL(yListAll), null,
-                    null, DataBaseUtil.buildWhereSQL(bigScreenData, modelDAOOne, param), DataBaseUtil.buildSortSQL(sortListAll), param);
+                    null, DataBaseUtil.buildWhereSQLAndValue(bigScreenData, modelDAOOne, param), DataBaseUtil.buildSortSQL(sortListAll), param);
         }
         List<Map<String, String>> chartDatas = null;
-        try {
-            switch (modelDAOOne.getDatasourceManage().getDatabaseTypeManage().getDatabaseTypeName()) {
-                case CommonConstant.MYSQL:
-                    chartDatas = DataBaseUtil.getDatas(modelDAOOne.getDatasourceManage(), sqlBuffer.toString(), param);
-                    break;
-                case CommonConstant.ES:
-                    chartDatas = ElasticsearchUtil.buildElasticsearch(bigScreenData, modelDAOOne, value, null, modelDAOOne.getDatasourceManage(), yDataModelAttributeListAll);
-                    break;
-            }
-        } catch (Exception e) {
-            LOGGER.error("BigScreenGaugeDataServiceImpl大屏仪表盘数据处理错误:", e);
-            infoJson.setCode("500");
-            infoJson.setSuccess(false);
-            infoJson.setDescription("执行错误：" + e.getMessage());
-
+        switch (modelDAOOne.getDatasourceManage().getDatabaseTypeManage().getDatabaseTypeName()) {
+            case CommonConstant.MYSQL:
+                chartDatas = DataBaseUtil.getDatas(modelDAOOne.getDatasourceManage(), sqlBuffer.toString(), param);
+                break;
+            case CommonConstant.ES:
+                chartDatas = ElasticsearchUtil.buildElasticsearch(bigScreenData, modelDAOOne, value, null, modelDAOOne.getDatasourceManage(), yDataModelAttributeListAll);
+                break;
         }
 
         Map<String, Object> resultMap = new LinkedHashMap<>();
         if (chartDatas != null && chartDatas.size() > 0) {
             resultMap.put("hideName", bigScreenData.isHideName());
-            if (maxValue != null && maxValue.size() > 0) {
-                resultMap.put("max", chartDatas.get(0).get(maxValueList.get(0).getRandomAlias()));
-            } else {
-                resultMap.put("max", bigScreenData.getMaxValue());
-            }
+            resultMap.put("max", maxValue);
             resultMap.put("min", bigScreenData.getMinValue());
             resultMap.put("name", DataBaseUtil.buildShowName(value, yValueList.get(0)));
             resultMap.put("unit", bigScreenData.getUnit());

@@ -86,9 +86,22 @@ public class BigScreenData {
     private List<Filter> filterList;
 
     /**
+     * 单独value,过滤条件
+     **/
+    @JsonProperty(value = "value_filter_list")
+    private List<Filter> valueFilterList;
+
+    /**
      * 联动条件
      **/
+    @JsonProperty(value = "biglinkage_data")
     private BiglinkageData biglinkageData;
+
+    /**
+     * 关联Url参数
+     **/
+    @JsonProperty(value = "query_data")
+    private BiglinkageData queryData;
 
     /**
      * 表格类型 normal正常的，crossPivot交叉透视表
@@ -149,6 +162,22 @@ public class BigScreenData {
      **/
     @JsonProperty(value = "turn_percentage")
     private boolean turnPercentage;
+
+    public BiglinkageData getQueryData() {
+        return queryData;
+    }
+
+    public void setQueryData(BiglinkageData queryData) {
+        this.queryData = queryData;
+    }
+
+    public List<Filter> getValueFilterList() {
+        return valueFilterList;
+    }
+
+    public void setValueFilterList(List<Filter> valueFilterList) {
+        this.valueFilterList = valueFilterList;
+    }
 
     public boolean isTurnPercentage() {
         return turnPercentage;
