@@ -75,6 +75,26 @@ public class BigScreenData {
     private List<BigAttributeData> name;
 
     /**
+     * 地图 起点经度
+     **/
+    private List<BigAttributeData> lng;
+
+    /**
+     * 地图 终点经度
+     **/
+    private List<BigAttributeData> lng2;
+
+    /**
+     * 地图 起点维度
+     **/
+    private List<BigAttributeData> lat;
+
+    /**
+     * 地图 终点维度
+     **/
+    private List<BigAttributeData> lat2;
+
+    /**
      * 图表类型
      **/
     @JsonProperty(value = "chart_type")
@@ -162,6 +182,38 @@ public class BigScreenData {
      **/
     @JsonProperty(value = "turn_percentage")
     private boolean turnPercentage;
+
+    public List<BigAttributeData> getLat() {
+        return lat;
+    }
+
+    public void setLat(List<BigAttributeData> lat) {
+        this.lat = lat;
+    }
+
+    public List<BigAttributeData> getLat2() {
+        return lat2;
+    }
+
+    public void setLat2(List<BigAttributeData> lat2) {
+        this.lat2 = lat2;
+    }
+
+    public List<BigAttributeData> getLng() {
+        return lng;
+    }
+
+    public void setLng(List<BigAttributeData> lng) {
+        this.lng = lng;
+    }
+
+    public List<BigAttributeData> getLng2() {
+        return lng2;
+    }
+
+    public void setLng2(List<BigAttributeData> lng2) {
+        this.lng2 = lng2;
+    }
 
     public BiglinkageData getQueryData() {
         return queryData;

@@ -404,13 +404,7 @@ public class DataModelServiceImpl implements IDataModelService {
             datas = DataBaseUtil.getDatas(datasourceManage, dataModelDAOOne.getSqlStr(), list);
         } catch (Exception e) {
             LOGGER.error("DataModelServiceImpl数据模型查询数据错误:", e);
-            Map<String, Object> map = new HashMap<>();
-            map.put("sql", dataModelDAOOne.getSqlShow());
-            infoJson.setDescription("执行SQL错误：" + e.getMessage());
-            infoJson.setCode("500");
-            infoJson.setSuccess(false);
-            infoJson.setData(map);
-            return infoJson;
+            throw new SBRException("DataModelServiceImpl数据模型查询数据错误", e);
         }
 
         //结果数据,处理关联映射问题，如果映射了去找对应映射的值

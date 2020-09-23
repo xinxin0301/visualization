@@ -3,6 +3,12 @@ package com.sbr.visualization.util;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sbr.common.exception.SBRException;
 import com.sbr.common.finder.Finder;
+import com.sbr.common.util.StringUtil;
+import com.sbr.ms.feign.system.dictionary.api.DictionaryFeignClient;
+import com.sbr.ms.feign.system.dictionary.model.DataDictionary;
+import com.sbr.ms.feign.system.organization.api.OrganizationFeignClient;
+import com.sbr.ms.feign.system.organization.model.Organization;
+import com.sbr.platform.auth.util.SecurityContextUtil;
 import com.sbr.springboot.context.SpringContextUtils;
 import com.sbr.springboot.json.InfoJson;
 import com.sbr.springboot.rest.exception.RestResouceNotFoundException;
@@ -13,6 +19,7 @@ import com.sbr.visualization.datamodel.model.DataModel;
 import com.sbr.visualization.datamodelattribute.dao.DataModelAttributeDAO;
 import com.sbr.visualization.datamodelattribute.model.DataModelAttribute;
 import com.sbr.visualization.datasourcemanage.model.DatasourceManage;
+import com.sbr.visualization.filter.dao.FilterDAO;
 import com.sbr.visualization.filter.model.Filter;
 import com.sbr.visualization.mappingdata.dao.MappingDataDAO;
 import com.sbr.visualization.mappingdata.model.MappingData;
@@ -40,6 +47,12 @@ public class DataBaseUtil {
     private static DataModelAttributeDAO dataModelAttributeDAO = SpringContextUtils.getBean(DataModelAttributeDAO.class);
 
     private static MappingDataDAO mappingDataDAO = SpringContextUtils.getBean(MappingDataDAO.class);
+
+    private static FilterDAO filterDAO = SpringContextUtils.getBean(FilterDAO.class);
+
+    private static OrganizationFeignClient organizationFeignClient = SpringContextUtils.getBean(OrganizationFeignClient.class);
+
+    private static DictionaryFeignClient dictionaryFeignClient = SpringContextUtils.getBean(DictionaryFeignClient.class);
 
     /**
      * @return java.sql.Connection
@@ -664,32 +677,7 @@ public class DataBaseUtil {
 
                 //拼接list_match条件
                 if (filter.getListMatch() != null && StringUtils.isNotEmpty(filter.getListMatch())) {
-                    Map listMatchMap = objectMapper.readValue(filter.getListMatch(), Map.class);
-                    if (listMatchMap != null && listMatchMap.size() > 0) {
-                        //类型
-                        String mode = (String) listMatchMap.get("mode");
-                        //表名字段名`tableName`.`name`
-                        String name = (String) listMatchMap.get("name");
-                        List<String> strList = null;
-                        if ("list".equals(mode)) {//选择
-                            strList = (List<String>) listMatchMap.get("list");
-                        } else {//手动
-                            strList = (List<String>) listMatchMap.get("manual");
-                        }
-                        StringBuffer inBuffer = new StringBuffer("(");
-                        for (int i = 0; i < strList.size(); i++) {
-                            inBuffer.append(" ? ,");
-                            sqlParam.add(strList.get(i));
-                        }
-                        String str = inBuffer.substring(0, inBuffer.length() - 1);
-                        str += (")");
-                        //TODO 条件SQL
-                        sqlbuffer.append("" + name + " IN " + str + " AND");
-
-                        //TODO 展示SQL
-                        String sqlIn = DataBaseUtil.getSqlIn(strList);
-                        sqlShow.append("" + name + " IN (" + sqlIn + ") AND");
-                    }
+                    buildListMatch(sqlParam, objectMapper, sqlbuffer, sqlShow, filter);
                 }
 
                 //拼接date条件
@@ -727,6 +715,39 @@ public class DataBaseUtil {
         bufferList.add(sqlbuffer);//0条件
         bufferList.add(sqlShow);//1展示
         return bufferList;
+    }
+
+    private static void buildListMatch(List<String> sqlParam, ObjectMapper objectMapper, StringBuffer sqlbuffer, StringBuffer sqlShow, Filter filter) throws IOException {
+        Map listMatchMap = objectMapper.readValue(filter.getListMatch(), Map.class);
+        if (listMatchMap != null && listMatchMap.size() > 0) {
+            //类型
+            String mode = (String) listMatchMap.get("mode");
+            //表名字段名`tableName`.`name`
+            String name = (String) listMatchMap.get("name");
+            List<String> strList = null;
+            if ("list".equals(mode)) {//选择
+                strList = (List<String>) listMatchMap.get("list");
+            } else {//手动
+                strList = (List<String>) listMatchMap.get("manual");
+            }
+            StringBuffer inBuffer = new StringBuffer("(");
+            for (int i = 0; i < strList.size(); i++) {
+                inBuffer.append(" ? ,");
+                sqlParam.add(strList.get(i));
+            }
+            String str = inBuffer.substring(0, inBuffer.length() - 1);
+            str += (")");
+            //TODO 条件SQL
+            if (sqlbuffer != null) {
+                sqlbuffer.append("" + name + " IN " + str + " AND");
+            }
+
+            //TODO 展示SQL
+            if (sqlShow != null) {
+                String sqlIn = DataBaseUtil.getSqlIn(strList);
+                sqlShow.append("" + name + " IN (" + sqlIn + ") AND");
+            }
+        }
     }
 
     private static void buildTextSql(List<String> sqlParam, StringBuffer textMatchParamBuffer, StringBuffer textMatchShowBuffer, String operator, List<Map<String, Object>> valueList) {
@@ -1049,6 +1070,71 @@ public class DataBaseUtil {
                 whereSQL += " WHERE " + sqlbuffer.toString();
             }
         }
+
+        //单位权限数据
+        List<Filter> filterList = filterDAO.findByDataModelId(modelDAOOne.getId());
+        List<Filter> list = filterList.stream().filter(filter -> (filter.getOrgCategory() != null) && (filter.getOrgType() != null)).collect(Collectors.toList());
+        if (list != null && list.size() > 0) {
+            Set<Organization> organizationSet = new HashSet<>();
+            for (Filter filter : list) {
+                //1、包含下级 2、包含上级 3、包含自己
+                String orgCategory = filter.getOrgCategory();
+                String[] split = orgCategory.split(",");
+                //当前单位ID
+                String orgId = SecurityContextUtil.getUserSessionInfo().getOrgId();
+                for (String s : split) {
+                    switch (s) {
+                        case "1":
+                            organizationSet.addAll(organizationFeignClient.findChildOrg(orgId));
+                            break;
+                        case "2":
+                            Organization parentOrg = organizationFeignClient.findParentOrg(orgId);
+                            organizationSet.add(parentOrg);
+                            organizationSet.add(parentOrg.getParent());
+                            break;
+                        case "3":
+                            organizationSet.add(organizationFeignClient.findParentOrg(orgId));
+                    }
+                }
+                //过滤出去单位权限的ID
+                List<String> idList = null;
+                if (filter.getOrgType() != null && !StringUtil.isEmpty(filter.getOrgType())) {
+                    //获取机构类型字典Key
+                    List<Integer> orgTypeList = new ArrayList<>();
+                    String orgType = filter.getOrgType();
+                    String[] split1 = orgType.split(",");
+                    Map<String, Object> queryMap = new HashMap<>();
+                    queryMap.put("dictionary_group", "org_type");
+                    List<DataDictionary> dataDictionaryPage = dictionaryFeignClient.findDataDictionaryPage(queryMap);
+                    for (DataDictionary dataDictionary : dataDictionaryPage) {
+                        for (String s : split1) {
+                            if (s.equals(dataDictionary.getDictionaryValue())) {
+                                orgTypeList.add(Integer.valueOf(dataDictionary.getDictionaryKey()));
+                            }
+                        }
+                    }
+                    //过滤字典数据
+                    List<Organization> collect = organizationSet.stream().filter((Organization o) -> orgTypeList.contains(o.getOrgType())).collect(Collectors.toList());
+                    idList = collect.stream().map(organization -> organization.getId()).collect(Collectors.toList());
+                }
+
+                String listStr = "";
+                if (idList != null) {
+                    listStr = objectMapper.writeValueAsString(idList);
+                }
+                DataModelAttribute dataModelAttribute = dataModelAttributeDAO.findOne(filter.getFieldId());
+                filter.setListMatch("{\"mode\":\"list\",\"name\":\"`" + dataModelAttribute.getTableName() + "`.`" + dataModelAttribute.getFieldsName() + "`\",\"list\":" + listStr + "}");
+                StringBuffer sqlbuffer = new StringBuffer();
+                buildListMatch(param, objectMapper, sqlbuffer, null, filter);
+                //如果之前有条件
+                if (whereSQL != null && StringUtils.isNotEmpty(whereSQL)) {
+                    whereSQL += " AND " + sqlbuffer.toString().substring(0, sqlbuffer.length() - 3);
+                } else {//之前没有条件
+                    whereSQL += " WHERE " + sqlbuffer.toString().substring(0, sqlbuffer.length() - 3);
+                }
+            }
+        }
+
 
         if (joinList != null && joinList.size() > 0) {
             //获取JOINSQL，多表连接

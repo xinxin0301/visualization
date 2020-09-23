@@ -162,7 +162,7 @@ public class DataModelAttributeServiceImpl implements IDataModelAttributeService
             }
         }
         //TODO 生成SQL，并保存SQL字符串
-        buidGetSql(attributeList, dataModel);
+        buidGetSql(attributeList, dataModel, filterDAO, dataModelDAO);
         return infoJson;
     }
 
@@ -174,7 +174,7 @@ public class DataModelAttributeServiceImpl implements IDataModelAttributeService
      * @Description //TODO 生成SQL
      * @Date 13:39 2020/6/29
      **/
-    private void buidGetSql(List<DataModelAttribute> attributeList, DataModel dataModel) throws IOException {
+    public static void buidGetSql(List<DataModelAttribute> attributeList, DataModel dataModel, FilterDAO filterDAO, DataModelDAO dataModelDAO) throws IOException {
         ObjectMapper objectMapper = new ObjectMapper();
         if (dataModel.getAssociation() != null && StringUtils.isNotEmpty(dataModel.getAssociation())) {
             Map map = objectMapper.readValue(dataModel.getAssociation(), Map.class);
@@ -230,7 +230,7 @@ public class DataModelAttributeServiceImpl implements IDataModelAttributeService
         }
     }
 
-    private String buidSQL(DataModel dataModel, Map map, List<Map<String, Object>> joinList, StringBuffer fieldBuffer, String whereSql) throws IOException {
+    public static String buidSQL(DataModel dataModel, Map map, List<Map<String, Object>> joinList, StringBuffer fieldBuffer, String whereSql) throws IOException {
         String fieldSql;
         if (joinList != null && joinList.size() > 0) {
             //多表处理

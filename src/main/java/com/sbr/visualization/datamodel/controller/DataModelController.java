@@ -4,6 +4,9 @@ import com.sbr.common.finder.Finder;
 import com.sbr.common.finder.FinderFactory;
 import com.sbr.common.page.Page;
 import com.sbr.common.page.PageFactory;
+import com.sbr.ms.feign.system.dictionary.api.DictionaryFeignClient;
+import com.sbr.ms.feign.system.organization.api.OrganizationFeignClient;
+import com.sbr.ms.feign.system.organization.model.Organization;
 import com.sbr.springboot.controller.BaseController;
 import com.sbr.springboot.json.InfoJson;
 import com.sbr.visualization.datamodel.model.DataModel;
@@ -14,9 +17,8 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 描述：数据模型管理控制层
@@ -29,6 +31,12 @@ public class DataModelController extends BaseController {
 
     @Autowired
     private IDataModelService dataModelService;
+
+    @Autowired
+    private OrganizationFeignClient organizationFeignClient;
+
+    @Autowired
+    private DictionaryFeignClient dictionaryFeignClient;
 
     /**
      * <p>分页查询</p>
@@ -146,5 +154,21 @@ public class DataModelController extends BaseController {
         return dataModelService.getDataByfield(dataModel);
     }
 
+    /**
+     * 查询机构单位类型
+     * @return
+     */
+    @GetMapping(value = "/v1/org-type")
+    public List<String> getOrgType() {
+        List<String> stringList = new ArrayList<>();
+        //获取所有组织机构
+        List<Organization> organizationList = organizationFeignClient.findAllOrganization();
+        Set<Integer> collect = organizationList.stream().map(organization -> organization.getOrgType()).collect(Collectors.toSet());
+        collect.forEach(integer -> {
+            String org_type = dictionaryFeignClient.findByGroupAndKey("org_type", integer + "");
+            stringList.add(org_type);
+        });
+        return stringList;
+    }
 
 }

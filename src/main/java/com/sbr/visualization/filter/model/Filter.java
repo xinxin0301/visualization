@@ -6,6 +6,7 @@ import com.sbr.visualization.datamodel.model.DataModel;
 import org.hibernate.annotations.GenericGenerator;
 
 import javax.persistence.*;
+import java.util.List;
 
 /**
  * 描述：过滤器模型
@@ -93,6 +94,34 @@ public class Filter {
     @ManyToOne
     @JoinColumn(name = "component_id")
     private ComponentManage componentManage;
+
+    /**
+     * 单位权限机构类型
+     */
+    @JsonProperty(value = "org_type")
+    private String orgType;
+
+    /**
+     * 单位权限分类 是否包含下级1、是否包含上级2、是否包含自己3
+     */
+    @JsonProperty(value = "org_category")
+    private String orgCategory;
+
+    public String getOrgType() {
+        return orgType;
+    }
+
+    public void setOrgType(String orgType) {
+        this.orgType = orgType;
+    }
+
+    public String getOrgCategory() {
+        return orgCategory;
+    }
+
+    public void setOrgCategory(String orgCategory) {
+        this.orgCategory = orgCategory;
+    }
 
     public String getTableName() {
         return tableName;

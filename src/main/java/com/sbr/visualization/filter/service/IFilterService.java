@@ -1,10 +1,12 @@
 package com.sbr.visualization.filter.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.sbr.common.finder.Finder;
 import com.sbr.common.page.Page;
 import com.sbr.springboot.json.InfoJson;
 import com.sbr.visualization.filter.model.Filter;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -74,7 +76,7 @@ public interface IFilterService {
     * @return 实体
     * @author DESKTOP-212O9VU 2020-06-30 11:18:23
     */
-    public InfoJson patchUpdate(List<Filter> filters,String id);
+    public InfoJson patchUpdate(List<Filter> filters,String id) throws IOException;
 
     /**
     *

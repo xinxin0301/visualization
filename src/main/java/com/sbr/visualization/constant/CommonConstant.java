@@ -96,6 +96,12 @@ public class CommonConstant {
      */
     public static final String WORDCLOUD = "wordCloud";
 
+
+    /**
+     * 3D飞线地图
+     */
+    public static final String THREE_MAP_LINE = "3d-map-line";
+
     /*                               度量參數                                       */
     public static Map<String,Object> measureMap = new HashMap<>();
 
