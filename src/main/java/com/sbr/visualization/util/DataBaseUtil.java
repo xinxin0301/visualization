@@ -14,6 +14,7 @@ import com.sbr.springboot.json.InfoJson;
 import com.sbr.springboot.rest.exception.RestResouceNotFoundException;
 import com.sbr.visualization.bigscreendata.model.BigAttributeData;
 import com.sbr.visualization.bigscreendata.model.BigScreenData;
+import com.sbr.visualization.bigscreendata.model.BiglinkageData;
 import com.sbr.visualization.constant.CommonConstant;
 import com.sbr.visualization.datamodel.model.DataModel;
 import com.sbr.visualization.datamodelattribute.dao.DataModelAttributeDAO;
@@ -784,7 +785,7 @@ public class DataBaseUtil {
             sqlShowBuffer.append("" + name);
         }
         switch (type) {
-            case "include"://包含
+                case "include"://包含
                 sqlbuffer.append(" LIKE ? " + operator);
                 sqlParam.add("%" + value + "%");
                 if (sqlShowBuffer != null) {
@@ -1071,7 +1072,63 @@ public class DataBaseUtil {
             }
         }
 
+        //全局过滤条件
+        if (bigScreenData.getConditions() != null) {
+            List<BiglinkageData> conditions = bigScreenData.getConditions();
+            for (BiglinkageData condition : conditions) {
+                //获取模型属性
+                DataModelAttribute dataModelAttribute = dataModelAttributeDAO.findOne(condition.getDataModelAttributeId());
+                //获取条件类型 select multiSelect
+                String k = condition.getK();
+                //获取全局条件值
+                String value = condition.getValue();
+                StringBuffer sqlbuffer = new StringBuffer();
+                if (k.equals("select")) {
+                    //拼接SQL条件
+                    buidTextMatch("", "`" + dataModelAttribute.getTableName() + "`.`" + dataModelAttribute.getFieldsName() + "`", condition.getLinkType(), value, param, sqlbuffer, null);
+                } else if (k.equals("multiSelect")) {
+                    String[] split = value.split(",");
+                    String sqlIn = getSqlIn(Arrays.asList(split));
+                    sqlbuffer.append(" `" + dataModelAttribute.getTableName() + "`.`" + dataModelAttribute.getFieldsName() + "` IN (" + sqlIn + ")");
+                }
+                //如果之前有条件
+                if (whereSQL != null && StringUtils.isNotEmpty(whereSQL)) {
+                    whereSQL += " AND " + sqlbuffer.toString();
+                } else {//之前没有条件
+                    whereSQL += " WHERE " + sqlbuffer.toString();
+                }
+            }
+        }
+
         //单位权限数据
+        whereSQL = buildOrgDataAuthority(modelDAOOne, whereSQL, param, objectMapper);
+
+
+        if (joinList != null && joinList.size() > 0) {
+            //获取JOINSQL，多表连接
+            StringBuffer sqlJoinBuffer = DataBaseUtil.getJOINSqlByAssociation(modelDAOOne.getAssociation());
+            //拼接SQL
+            sqlBuffer = new StringBuffer(" SELECT " + dimensions + measure + " FROM " + sqlJoinBuffer + whereSQL + group + sort + " LIMIT 0 ," + bigScreenData.getLimit() + " ");
+        } else {
+            //获取表名
+            String tableName = (String) map.get("name");
+            //结果SQL
+            sqlBuffer = new StringBuffer(" SELECT " + dimensions + measure + " FROM " + tableName + whereSQL + group + sort + " LIMIT 0 ," + bigScreenData.getLimit() + " ");
+        }
+        return sqlBuffer;
+    }
+
+    /**
+     * 构建单位数据权限
+     *
+     * @param modelDAOOne  数据模型
+     * @param whereSQL     字符串
+     * @param param        参数集合
+     * @param objectMapper 字符串转换
+     * @return
+     * @throws IOException
+     */
+    public static String buildOrgDataAuthority(DataModel modelDAOOne, String whereSQL, List<String> param, ObjectMapper objectMapper) throws IOException {
         List<Filter> filterList = filterDAO.findByDataModelId(modelDAOOne.getId());
         List<Filter> list = filterList.stream().filter(filter -> (filter.getOrgCategory() != null) && (filter.getOrgType() != null)).collect(Collectors.toList());
         if (list != null && list.size() > 0) {
@@ -1119,35 +1176,27 @@ public class DataBaseUtil {
                 }
 
                 String listStr = "";
-                if (idList != null) {
-                    listStr = objectMapper.writeValueAsString(idList);
+
+                if (idList == null || idList.size() == 0) {
+                    idList.add("默认单位");
                 }
-                DataModelAttribute dataModelAttribute = dataModelAttributeDAO.findOne(filter.getFieldId());
-                filter.setListMatch("{\"mode\":\"list\",\"name\":\"`" + dataModelAttribute.getTableName() + "`.`" + dataModelAttribute.getFieldsName() + "`\",\"list\":" + listStr + "}");
-                StringBuffer sqlbuffer = new StringBuffer();
-                buildListMatch(param, objectMapper, sqlbuffer, null, filter);
-                //如果之前有条件
-                if (whereSQL != null && StringUtils.isNotEmpty(whereSQL)) {
-                    whereSQL += " AND " + sqlbuffer.toString().substring(0, sqlbuffer.length() - 3);
-                } else {//之前没有条件
-                    whereSQL += " WHERE " + sqlbuffer.toString().substring(0, sqlbuffer.length() - 3);
+
+                if (idList != null && idList.size() > 0) {
+                    listStr = objectMapper.writeValueAsString(idList);
+                    DataModelAttribute dataModelAttribute = dataModelAttributeDAO.findOne(filter.getFieldId());
+                    filter.setListMatch("{\"mode\":\"list\",\"name\":\"`" + dataModelAttribute.getTableName() + "`.`" + dataModelAttribute.getFieldsName() + "`\",\"list\":" + listStr + "}");
+                    StringBuffer sqlbuffer = new StringBuffer();
+                    buildListMatch(param, objectMapper, sqlbuffer, null, filter);
+                    //如果之前有条件
+                    if (whereSQL != null && StringUtils.isNotEmpty(whereSQL)) {
+                        whereSQL += " AND " + sqlbuffer.toString().substring(0, sqlbuffer.length() - 3);
+                    } else {//之前没有条件
+                        whereSQL += " WHERE " + sqlbuffer.toString().substring(0, sqlbuffer.length() - 3);
+                    }
                 }
             }
         }
-
-
-        if (joinList != null && joinList.size() > 0) {
-            //获取JOINSQL，多表连接
-            StringBuffer sqlJoinBuffer = DataBaseUtil.getJOINSqlByAssociation(modelDAOOne.getAssociation());
-            //拼接SQL
-            sqlBuffer = new StringBuffer(" SELECT " + dimensions + measure + " FROM " + sqlJoinBuffer + whereSQL + group + sort + " LIMIT 0 ," + bigScreenData.getLimit() + " ");
-        } else {
-            //获取表名
-            String tableName = (String) map.get("name");
-            //结果SQL
-            sqlBuffer = new StringBuffer(" SELECT " + dimensions + measure + " FROM " + tableName + whereSQL + group + sort + " LIMIT 0 ," + bigScreenData.getLimit() + " ");
-        }
-        return sqlBuffer;
+        return whereSQL;
     }
 
 

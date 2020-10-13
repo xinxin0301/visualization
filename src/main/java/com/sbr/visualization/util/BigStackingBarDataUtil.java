@@ -50,7 +50,6 @@ public class BigStackingBarDataUtil {
         //维度
         List<DataModelAttribute> xValueList = null;
         if (x != null && x.size() > 0) {
-            xValueList = new ArrayList<>();
             xValueList = DataBaseUtil.findBigAttributeDataByListId(x);
             sortListAll.addAll(x);
             dimensionListAll.addAll(xValueList);
@@ -59,20 +58,14 @@ public class BigStackingBarDataUtil {
         //度量
         List<DataModelAttribute> yValueList = null;
         if (y != null && y.size() > 0) {
-            yValueList = new ArrayList<>();
-            for (BigAttributeData bigAttributeData : y) {
-                yValueList.add(dataModelAttributeDAO.findOne(bigAttributeData.getId()));
-            }
+            yValueList = DataBaseUtil.findBigAttributeDataByListId(y);
             sortListAll.addAll(y);
         }
 
         //图例
         List<DataModelAttribute> colorValueList = null;
         if (color != null && color.size() > 0) {
-            colorValueList = new ArrayList<>();
-            for (BigAttributeData bigAttributeData : color) {
-                colorValueList.add(dataModelAttributeDAO.findOne(bigAttributeData.getId()));
-            }
+            colorValueList = DataBaseUtil.findBigAttributeDataByListId(color);
             sortListAll.addAll(color);
             dimensionListAll.addAll(colorValueList);
         }
