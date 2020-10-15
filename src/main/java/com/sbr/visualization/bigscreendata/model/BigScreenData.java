@@ -124,6 +124,11 @@ public class BigScreenData {
     private BiglinkageData queryData;
 
     /**
+     * 全局条件
+     **/
+    private List<BiglinkageData> conditions;
+
+    /**
      * 表格类型 normal正常的，crossPivot交叉透视表
      **/
     @JsonProperty(value = "table_type")
@@ -137,17 +142,16 @@ public class BigScreenData {
 
     /**
      * 是否开启列表序号
-     *
+     * <p>
      * true  开启表单序号
      * false 没有表单序号
-     *
      **/
     @JsonProperty(value = "table_num")
     private Boolean tableNum;
 
     /**
      * 表单聚合开关
-     *
+     * <p>
      * true  不聚合展示所有数据
      * false 聚合
      **/
@@ -155,33 +159,41 @@ public class BigScreenData {
     private Boolean tableNotAggregate;
 
     /**
-     *  最大值
+     * 最大值
      **/
     @JsonProperty(value = "max_value")
     private Integer maxValue;
 
     /**
-     *  最小值
+     * 最小值
      **/
     @JsonProperty(value = "min_value")
     private Integer minValue;
 
     /**
-     *  隱藏指标名称
+     * 隱藏指标名称
      **/
     @JsonProperty(value = "hide_name")
     private boolean hideName;
 
     /**
-     *  单位
+     * 单位
      **/
     private String unit;
 
     /**
-     *  小数转百分比
+     * 小数转百分比
      **/
     @JsonProperty(value = "turn_percentage")
     private boolean turnPercentage;
+
+    public List<BiglinkageData> getConditions() {
+        return conditions;
+    }
+
+    public void setConditions(List<BiglinkageData> conditions) {
+        this.conditions = conditions;
+    }
 
     public List<BigAttributeData> getLat() {
         return lat;

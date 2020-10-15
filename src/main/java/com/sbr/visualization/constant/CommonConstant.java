@@ -102,6 +102,11 @@ public class CommonConstant {
      */
     public static final String THREE_MAP_LINE = "3d-map-line";
 
+    /**
+     * 全局过滤条件
+     */
+    public static final String SELECT = "select";
+
     /*                               度量參數                                       */
     public static Map<String,Object> measureMap = new HashMap<>();
 

@@ -48,6 +48,11 @@
             <artifactId>elasticsearch</artifactId>
             <version>6.8.1</version>
         </dependency>
+        <dependency>
+            <groupId>com.sbr.ms</groupId>
+            <artifactId>ms-feign</artifactId>
+            <version>1.0.0-RELEASE</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -60,16 +65,8 @@
     </build>
     <repositories>
         <repository>
-            <id>public_Repository</id>
-            <name>public_Repository</name>
-            <url>http://192.168.7.200:8083/nexus/content/groups/public_Repository</url>
-            <layout>default</layout>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
+            <id>repository</id>
+            <url>file:E:\repository</url>
         </repository>
     </repositories>
 </project>

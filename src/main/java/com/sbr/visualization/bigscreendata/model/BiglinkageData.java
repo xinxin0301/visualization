@@ -25,6 +25,19 @@ public class BiglinkageData {
     @JsonProperty(value = "link_type")
     private String linkType;
 
+    /**
+     * 全局过滤条件类型
+     **/
+    private String k;
+
+    public String getK() {
+        return k;
+    }
+
+    public void setK(String k) {
+        this.k = k;
+    }
+
     public String getValue() {
         return value;
     }

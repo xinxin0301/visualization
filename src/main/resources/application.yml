@@ -17,9 +17,9 @@ security:
   oauth2:
     resource:
       filter-order: 3
-      user-info-uri: http://prometheus-uia:9002/oauth/user
+      user-info-uri: http://localhost:9002/oauth/user
       prefer-token-info: false
-#日志审计功能开关 默认:拦截已配置的请求  
+#日志审计功能开关 默认:拦截已配置的请求
 audit.audit-all.switch: false
 spring.activiti.history-level: full
 project.version: 1.0.0
@@ -72,7 +72,7 @@ spring:
     driver-class-name: com.mysql.jdbc.Driver
     #driver-class-name: com.sbr.threeaudit.dbdriver.driver.MysqlProxyDriver
     username: root
-    password: root
+    password: Admin123
 
 
 #    url: SBR_ENCRYPT{fUoDilg0s4DhPkpXd58XmUR2Zo6l7/+xftW7mkrKEKHiQgvy7Ja5tyyqQDg6p/rWawlWLEYFcl6eryIezGvd3T10koZ1UdXheBmI1b8T8qLlt1YLoeXelDW4MN+Eiv+P7/r2BpiZzWdQM31+YPpGDQw6Eyncr1ZWSECjKoQ0GPA=}

@@ -5,6 +5,7 @@ import com.sbr.common.exception.SBRException;
 import com.sbr.common.finder.Finder;
 import com.sbr.common.page.Page;
 import com.sbr.common.util.ClassUtil;
+import com.sbr.common.util.StringUtil;
 import com.sbr.springboot.json.InfoJson;
 import com.sbr.springboot.rest.exception.RestIllegalArgumentException;
 import com.sbr.visualization.config.EsConfig;
@@ -399,6 +400,26 @@ public class DataModelServiceImpl implements IDataModelService {
         if (sqlParam != null && StringUtils.isNotEmpty(sqlParam)) {
             list = objectMapper.readValue(sqlParam, List.class);
         }
+
+        //TODO 等于NULL说明没有查询条件，判断是否有单位权限
+        //构建出单位条件
+        String substring = "";
+        String orgDataAuthority = DataBaseUtil.buildOrgDataAuthority(dataModelDAOOne, new String(), list, objectMapper);
+        if(orgDataAuthority!=null && StringUtils.isNotEmpty(orgDataAuthority)){
+            substring = orgDataAuthority.substring(6);
+        }
+        //截取SQL拼接条件 截取掉LIMIT 0,500
+        String orgAuthoritySql = dataModelDAOOne.getSqlStr().substring(0, dataModelDAOOne.getSqlStr().length() - 11);
+        if (sqlParam != null && StringUtils.isNotEmpty(sqlParam) && !sqlParam.equals("[]")) {
+            if (substring != null && StringUtils.isNotEmpty(substring)) {
+                dataModelDAOOne.setSqlStr(orgAuthoritySql + "AND" + substring + " LIMIT 0,500");
+            }
+        } else {
+            if (substring != null && StringUtils.isNotEmpty(substring)) {
+                dataModelDAOOne.setSqlStr(orgAuthoritySql + "WHERE" + substring + " LIMIT 0,500");
+            }
+        }
+
         try {
             //查询结果
             datas = DataBaseUtil.getDatas(datasourceManage, dataModelDAOOne.getSqlStr(), list);

@@ -1,3 +1,4 @@
+import com.mysql.jdbc.authentication.MysqlNativePasswordPlugin;
 import com.sbr.VisualizationApplication;
 import com.sbr.visualization.bigscreendata.model.BigAttributeData;
 import com.sbr.visualization.bigscreendata.model.BigScreenData;
@@ -57,6 +58,35 @@ public class Test {
 
     @Autowired
     private EsConfig esConfig;
+
+    @org.junit.Test
+    public void test4() {
+        List<Integer> list = new ArrayList<>();
+        list.add(1);
+        list.add(2);
+        list.add(3);
+        list.add(4);
+        list.add(5);
+        list.add(6);
+        list.add(7);
+        list.add(8);
+        list.add(9);
+        list.add(10);
+        List<Map> mapList = new ArrayList<>();
+
+        int size = 2;
+        if (list.size() > size) {
+            for (int i = 0; i < list.size(); i += 2) {
+                size++;
+                Map map = new HashMap();
+                map.put("id", list.get(i));
+                mapList.add(map);
+            }
+        }
+
+        System.out.println(mapList);
+
+    }
 
 
     @org.junit.Test
@@ -491,7 +521,7 @@ public class Test {
 
 
     @org.junit.Test
-    public void nnn(){
+    public void nnn() {
         List<Integer> integerList = new ArrayList<>(4);
         integerList.add(1);
         integerList.add(2);
@@ -500,7 +530,7 @@ public class Test {
         System.out.println(integerList);
 
         int i = integerList.indexOf(3);
-        integerList.set(i,10);
+        integerList.set(i, 10);
         System.out.println(integerList);
 
 

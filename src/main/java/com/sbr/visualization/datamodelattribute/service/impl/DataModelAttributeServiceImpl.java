@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 描述：数据模型属性表 服务实现层
@@ -192,6 +193,8 @@ public class DataModelAttributeServiceImpl implements IDataModelAttributeService
                 //TODO 处理条件
                 //根据数据模型查询，过滤器
                 List<Filter> filterList = filterDAO.findByDataModelId(dataModel.getId());
+                //TODO 过滤单位，保存SQL只保存不包含单位条件的，单位条件旨在最后生成查询语句的时候添加
+                filterList = filterList.stream().filter((Filter f) -> f.getOrgType() == null && f.getOrgCategory() == null).collect(Collectors.toList());
                 //构建WHERE条件SQL
                 List<String> sqlParam = new ArrayList<>();
                 //0条件SQL 1展示SQL
